@@ -140,6 +140,7 @@ struct HomeView: View {
                         .foregroundStyle(textColor.opacity(0.85))
                         .lineSpacing(2)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 6)
                 }
                 Spacer(minLength: Metrics.space2)

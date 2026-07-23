@@ -66,8 +66,8 @@ struct ScoreBoardTests {
         #expect(result.topRuns.count == 2)
     }
 
-    @Test("the current run is always included in the list")
-    func currentRunAlwaysListed() {
+    @Test("a low-scoring current run is not forced onto the board")
+    func lowCurrentRunIsNotForcedOntoTheBoard() {
         let previous = (1...10).map { run(50 + $0, daysAgo: Double($0)) }
         let result = ScoreBoard.evaluate(previousRuns: previous, current: run(1))
         #expect(result.topRuns.count == ScoreBoard.maximumListed)

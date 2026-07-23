@@ -1,5 +1,3 @@
-import Foundation
-
 /// Builds the option set for multiple choice.
 ///
 /// Distractors are drawn from two families of realistic mistake: an off-by-a-few

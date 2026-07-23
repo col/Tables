@@ -16,11 +16,20 @@ extension MasteryLevel {
 
 struct MasteryGridView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(\.modelContext) private var modelContext
     @Query private var stats: [FactStat]
 
     private var levels: [String: MasteryLevel] {
-        Dictionary(uniqueKeysWithValues: stats.map { ($0.key, Mastery.level(for: $0.history)) })
+        // `SwiftDataProgressStore.stat(for:)` can, on a swallowed fetch failure,
+        // insert a second `FactStat` sharing a key. `Dictionary(uniqueKeysWithValues:)`
+        // would trap on that duplicate, so tolerate it here too, keeping whichever
+        // stat has more attempts recorded (it carries more of the child's real history).
+        let deduped = Dictionary(
+            stats.map { ($0.key, $0) },
+            uniquingKeysWith: { existing, incoming in
+                existing.history.attempts >= incoming.history.attempts ? existing : incoming
+            }
+        )
+        return deduped.mapValues { Mastery.level(for: $0.history) }
     }
 
     var body: some View {
