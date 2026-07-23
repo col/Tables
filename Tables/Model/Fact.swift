@@ -1,7 +1,11 @@
 import Foundation
 
 /// One multiplication fact. `a` is the table, `b` the multiplicand.
-struct Fact: Hashable, Sendable, Identifiable {
+///
+/// `nonisolated`: see `GameLength` for why — a pure Sendable value type
+/// should not be main-actor-isolated just because the app target defaults
+/// to `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+nonisolated struct Fact: Hashable, Sendable, Identifiable {
     let a: Int
     let b: Int
 

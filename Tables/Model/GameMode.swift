@@ -1,6 +1,9 @@
 import Foundation
 
-enum GameMode: String, CaseIterable, Codable, Sendable {
+/// `nonisolated`: see `GameLength` for why — a pure Sendable value type
+/// should not be main-actor-isolated just because the app target defaults
+/// to `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+nonisolated enum GameMode: String, CaseIterable, Codable, Sendable {
     case countdown
     case revision
 

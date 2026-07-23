@@ -2,7 +2,11 @@ import Foundation
 
 /// Everything the player chose on the setup screen. Scores are scoped to this
 /// whole shape, so only like-for-like runs are ever compared.
-struct GameConfig: Hashable, Sendable {
+///
+/// `nonisolated`: see `GameLength` for why — a pure Sendable value type
+/// should not be main-actor-isolated just because the app target defaults
+/// to `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+nonisolated struct GameConfig: Hashable, Sendable {
     var mode: GameMode
     var tables: Set<Int>
     var answerMode: AnswerMode
