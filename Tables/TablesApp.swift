@@ -44,8 +44,13 @@ struct RootView: View {
         case .game(let config):
             GameView(config: config)
         case .results:
-            // Task 17 replaces this.
-            PhoneColumn { Text("Results") }
+            if let summary = router.summary {
+                ResultsView(summary: summary)
+            } else {
+                // Only reachable if the stack is restored without a summary.
+                PhoneColumn { Color.canvas }
+                    .onAppear { router.goHome() }
+            }
         case .progress:
             // Task 18 replaces this.
             PhoneColumn { Text("Your tables") }
