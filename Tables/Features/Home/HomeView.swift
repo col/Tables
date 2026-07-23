@@ -53,6 +53,12 @@ struct HomeView: View {
             .padding(.top, Metrics.space2)
             .padding(.bottom, Metrics.space6)
         }
+        .sheet(isPresented: Binding(
+            get: { router.isShowingSettings },
+            set: { router.isShowingSettings = $0 }
+        )) {
+            SettingsView()
+        }
     }
 
     private var header: some View {
