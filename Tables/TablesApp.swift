@@ -1,32 +1,20 @@
-//
-//  TablesApp.swift
-//  Tables
-//
-//  Created by Colin Harris on 23/7/2026.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct TablesApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(for: [FactStat.self, GameRun.self])
+    }
+}
+
+/// Placeholder shell. Task 13 replaces this with the real navigation stack.
+struct RootView: View {
+    var body: some View {
+        Color(red: 0.949, green: 0.937, blue: 0.910)
+            .ignoresSafeArea()
     }
 }
