@@ -40,8 +40,7 @@ struct RootView: View {
     private func destination(for route: Route) -> some View {
         switch route {
         case .setup(let mode):
-            // Task 14 replaces this.
-            PhoneColumn { Text(mode.title) }
+            SetupView(mode: mode)
         case .game(let config):
             // Task 15 replaces this.
             PhoneColumn { Text(config.summary) }
