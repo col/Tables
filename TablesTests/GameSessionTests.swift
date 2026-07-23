@@ -279,6 +279,19 @@ struct GameSessionTests {
         #expect(runs[0].score == 1)
     }
 
+    @Test("a second end tap does not record the run twice")
+    func endingTwiceRecordsOneRun() {
+        let (session, store) = makeSession()
+        session.start(now: start)
+        session.submit(session.fact.answer, now: start.addingTimeInterval(1))
+
+        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .finished)
+        // A double-tap, or a race with the clock finishing on its own.
+        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .finished)
+
+        #expect(store.runs(forConfigKey: session.config.configKey).count == 1)
+    }
+
     @Test("the summary carries the score board")
     func summaryCarriesTheBoard() {
         let store = InMemoryProgressStore()

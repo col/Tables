@@ -241,6 +241,9 @@ final class GameSession {
     }
 
     func endEarly(now: Date) -> EndOutcome {
+        // A second tap on End/Finish, or a race with the clock finishing on
+        // its own, must not record the run twice or recompute the board.
+        guard phase != .finished else { return .finished }
         guard answered > 0 else { return .abandoned }
         finish(now: now)
         return .finished
@@ -253,6 +256,7 @@ final class GameSession {
     }
 
     func resume(now: Date) {
+        guard phase != .finished else { pausedAt = nil; return }
         guard let pausedAt else { return }
         let elapsed = now.timeIntervalSince(pausedAt)
         deadline = deadline?.addingTimeInterval(elapsed)
