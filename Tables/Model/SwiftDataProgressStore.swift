@@ -11,7 +11,18 @@ final class SwiftDataProgressStore: ProgressRecording {
 
     func history() -> [String: FactHistory] {
         let stats = (try? context.fetch(FetchDescriptor<FactStat>())) ?? []
-        return Dictionary(uniqueKeysWithValues: stats.map { ($0.key, $0.history) })
+        // `stat(for:)` can, on a transient fetch failure, insert a second
+        // `FactStat` sharing a key that already exists. That must not turn
+        // into a crash here: `Dictionary(uniqueKeysWithValues:)` traps on a
+        // duplicate key, which would let one bad read take down an unrelated
+        // call days later. Keep whichever stat has more attempts recorded —
+        // it carries more of the child's real history.
+        return Dictionary(
+            stats.map { ($0.key, $0.history) },
+            uniquingKeysWith: { existing, incoming in
+                existing.attempts >= incoming.attempts ? existing : incoming
+            }
+        )
     }
 
     func recordCorrect(_ fact: Fact, millis: Double?, at date: Date) {
@@ -41,7 +52,21 @@ final class SwiftDataProgressStore: ProgressRecording {
         let key = fact.key
         var descriptor = FetchDescriptor<FactStat>(predicate: #Predicate { $0.key == key })
         descriptor.fetchLimit = 1
-        if let existing = try? context.fetch(descriptor).first { return existing }
+        do {
+            if let existing = try context.fetch(descriptor).first {
+                return existing
+            }
+            // Fetch succeeded and found nothing: genuinely a new fact.
+        } catch {
+            // The fetch itself failed — indistinguishable here from "not
+            // found", but it is not the same thing. This store must stay
+            // non-throwing (the caller, mid-game, cannot handle an error),
+            // so the deliberate choice is to fail open: fall through and
+            // create a fresh `FactStat` rather than losing the answer the
+            // child just gave. If a stat with this key already exists in
+            // the store, that can leave two rows sharing a key; `history()`
+            // is written to tolerate that rather than trap on it.
+        }
         let created = FactStat(fact: fact)
         context.insert(created)
         return created
