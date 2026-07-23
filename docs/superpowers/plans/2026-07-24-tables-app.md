@@ -261,7 +261,7 @@ the Xcode template scaffolding."
   - `Color.paper/.canvas/.tileNeutral/.line/.border/.divider/.ink/.inkSoft/.inkMuted`
   - `Color.sage/.sageTint/.sageText` and the same triple for `butter`, `blush`, `sky`, `lilac`; plus `Color.clay`
   - `enum Metrics` with `space1…space10`, `radiusSwatch/Key/Tile/Card`, `strokeTile/strokeCard`, `hitMin`, `contentMaxWidth`
-  - `enum Motion` with the raw duration tokens `quick/fade/pop/flip` (`TimeInterval`, mirroring `motion.css`), the derived `fadeAnimation`/`popAnimation` (`Animation`), the shared `easeOutControlPoints`, and `static func animation(_ base: Animation?, reduceMotion: Bool) -> Animation?`. Later tasks consume `Motion.pop`, `Motion.fadeAnimation`, `Motion.popAnimation` and `Motion.animation(_:reduceMotion:)` — nothing else.
+  - `enum Motion` with the raw duration tokens `quick/fade/pop/flip` (`TimeInterval`, mirroring `motion.css`), the derived `fadeAnimation`/`popAnimation` (`Animation`), the shared `easeOut` (`UnitCurve`), and `static func animation(_ base: Animation?, reduceMotion: Bool) -> Animation?`. Later tasks consume `Motion.pop`, `Motion.fadeAnimation`, `Motion.popAnimation` and `Motion.animation(_:reduceMotion:)` — nothing else.
   - `enum Typography` with `static func display(_ size: CGFloat, relativeTo: Font.TextStyle = .body) -> Font` and `static func ui(_ size: CGFloat, weight: UIFontWeight = .regular, relativeTo: Font.TextStyle = .body) -> Font`, plus `enum UIFontWeight { case regular, semibold }` and `static let capsTracking: CGFloat`
 
 - [ ] **Step 1: Write the failing test**
