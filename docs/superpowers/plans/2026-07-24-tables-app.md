@@ -22,6 +22,13 @@
 - **No emoji anywhere** in UI copy. This is a brand rule.
 - All copy is sentence case except caps "eyebrow" labels.
 - Anything random takes an injected `RandomNumberGenerator`. Anything time-based takes an injected `Date`. No `Date()` or `Task.sleep` inside `Model/` or `Game/`.
+- **Actor isolation.** The app target sets `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`; the test targets do not. So every type declared in `Tables/` is implicitly `@MainActor`, including its synthesised `Equatable`/`Hashable` conformances — and a nonisolated test comparing two of them warns: *"main actor-isolated conformance of 'X' to 'Equatable' cannot be used in nonisolated context; this is an error in the Swift 6 language mode."*
+
+  Rule: **every pure value type and pure-logic type under `Tables/Model/` and `Tables/Game/` is declared `nonisolated`.** That covers `Fact`, `GameMode`, `AnswerMode`, `GameLength`, `GameConfig`, `FactHistory`, `MasteryLevel`, `Mastery`, `QuestionPicker`, `DistractorGenerator`, `RunRecord`, `ScoreBoardResult`, `ScoreBoard`, `AnyRandomGenerator`, and `TileState` in the design system. It is a truthful statement about types that carry no shared mutable state, not a warning suppression.
+
+  The exceptions stay `@MainActor` as the tasks already specify, because they genuinely touch UI or a `ModelContext`: `ProgressRecording` and both stores, `GameSession`, `AppSettings`, `FeedbackPlaying` and its implementations, `AppRouter`, `SetupModel`. SwiftData `@Model` classes (`FactStat`, `GameRun`) keep the target default.
+
+  Never reach for `@preconcurrency`, `nonisolated(unsafe)`, or a warning flag. **Test output must be pristine — warnings are findings.**
 - Every task ends with a commit.
 
 ## File Structure
