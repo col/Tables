@@ -4379,10 +4379,11 @@ struct MultipleChoiceView: View {
 
 - [ ] **Step 2: Create `Tables/Features/Game/GameView.swift`**
 
-`import Combine` is required — `Timer.publish` and `.onReceive` come from Combine, not Foundation.
+`import Combine` is required — `Timer.publish` and `.onReceive` come from Combine, not Foundation. `import SwiftData` is required too — `GameView` reads `\.modelContext` and constructs a `SwiftDataProgressStore`.
 
 ```swift
 import SwiftUI
+import SwiftData
 import Combine
 
 struct GameView: View {
