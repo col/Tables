@@ -4333,7 +4333,7 @@ with a Start button that stays disabled until a table is chosen."
 - Produces:
   - `struct GameView: View { init(config: GameConfig) }`
   - `struct MultipleChoiceView: View { init(session: GameSession) }`
-  - `func tileState(for value: Int, in session: GameSession) -> TileState` on `MultipleChoiceView`
+  - a `private func state(for value: Int) -> TileState` inside `MultipleChoiceView` (reads the session it holds; not a public interface)
 
 - [ ] **Step 1: Create `Tables/Features/Game/MultipleChoiceView.swift`**
 
@@ -4395,6 +4395,9 @@ struct GameView: View {
 
     private let config: GameConfig
     @State private var session: GameSession?
+    // Hoisted into @State so the publisher is created once per view identity,
+    // not rebuilt on every ~50ms body re-evaluation.
+    @State private var ticker = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     init(config: GameConfig) {
         self.config = config
@@ -4427,9 +4430,8 @@ struct GameView: View {
             guard let session else { return }
             if phase == .active { session.resume(now: Date()) } else { session.pause(now: Date()) }
         }
-        // 20Hz is enough for a whole-second clock and a 240ms cross-fade, and
-        // cheap enough not to matter.
-        .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { now in
+        // 20Hz is enough for a whole-second clock and a 240ms cross-fade.
+        .onReceive(ticker) { now in
             guard let session, session.phase != .finished else { return }
             session.tick(now: now)
             if session.phase == .finished, let summary = session.summary {
