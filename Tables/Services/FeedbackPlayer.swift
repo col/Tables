@@ -27,7 +27,7 @@ final class FeedbackPlayer: FeedbackPlaying {
     private let player = AVAudioPlayerNode()
     private var correctBuffer: AVAudioPCMBuffer?
     private var incorrectBuffer: AVAudioPCMBuffer?
-    private var isEngineReady = false
+    private var isGraphConfigured = false
 
     private let impact = UIImpactFeedbackGenerator(style: .light)
     private let notification = UINotificationFeedbackGenerator()
@@ -57,27 +57,46 @@ final class FeedbackPlayer: FeedbackPlaying {
 
     private func play(_ keyPath: KeyPath<FeedbackPlayer, AVAudioPCMBuffer?>) {
         guard settings.soundEnabled else { return }
-        startEngineIfNeeded()
+        configureGraphIfNeeded()
+        guard ensureEngineRunning() else { return }
         guard let buffer = self[keyPath: keyPath] else { return }
         player.scheduleBuffer(buffer, at: nil, options: .interrupts)
         if !player.isPlaying { player.play() }
     }
 
-    private func startEngineIfNeeded() {
-        guard !isEngineReady else { return }
-        isEngineReady = true
+    /// One-time graph setup: attach/connect the player node, build the two
+    /// tone buffers, and pick the audio session category. Idempotent —
+    /// whether the engine is actually *running* is a separate, per-play check.
+    private func configureGraphIfNeeded() {
+        guard !isGraphConfigured else { return }
+        isGraphConfigured = true
 
         // .ambient means the hardware silent switch and any music already
         // playing both win. A practice app should never take over the device.
         try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
 
         let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: format)
         correctBuffer = Self.tone(frequency: 880, duration: 0.16, format: format)
         incorrectBuffer = Self.tone(frequency: 320, duration: 0.18, format: format)
-        try? engine.start()
+    }
+
+    /// The engine can stop at any time — a phone call, Siri, another app
+    /// taking the session, a route change — leaving `isGraphConfigured` true
+    /// but the engine dead. Checked (and, if needed, restarted) on every
+    /// play rather than assumed from one-time setup having run.
+    private func ensureEngineRunning() -> Bool {
+        guard !engine.isRunning else { return true }
+        // The session is deactivated on interruption, so reactivating it is
+        // part of recovery, not just first-time setup.
+        try? AVAudioSession.sharedInstance().setActive(true)
+        do {
+            try engine.start()
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Fast attack, gentle exponential decay — a soft knock rather than a beep.
