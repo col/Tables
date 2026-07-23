@@ -42,8 +42,7 @@ struct RootView: View {
         case .setup(let mode):
             SetupView(mode: mode)
         case .game(let config):
-            // Task 15 replaces this.
-            PhoneColumn { Text(config.summary) }
+            GameView(config: config)
         case .results:
             // Task 17 replaces this.
             PhoneColumn { Text("Results") }
