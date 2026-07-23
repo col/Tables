@@ -16,7 +16,7 @@ nonisolated struct FactHistory: Hashable, Sendable {
     var isUnseen: Bool { attempts == 0 }
 }
 
-/// Tracks a child's mastery of a single times-tables fact.
+/// The three display states a fact can be in: not yet attempted, improving, or fully mastered.
 ///
 /// `nonisolated`: see `GameLength` for why — a pure Sendable value type
 /// should not be main-actor-isolated just because the app target defaults
@@ -35,7 +35,12 @@ nonisolated enum MasteryLevel: Hashable, Sendable, CaseIterable {
     }
 }
 
-enum Mastery {
+/// Rules for determining and updating mastery of a times-tables fact.
+///
+/// `nonisolated`: see `GameLength` for why — a pure Sendable value type
+/// should not be main-actor-isolated just because the app target defaults
+/// to `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+nonisolated enum Mastery {
     /// One lucky fast answer should not read as mastery.
     static let requiredCorrectCount = 3
     static let masteryThresholdMillis: Double = 3000
