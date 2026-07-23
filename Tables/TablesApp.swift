@@ -52,8 +52,7 @@ struct RootView: View {
                     .onAppear { router.goHome() }
             }
         case .progress:
-            // Task 18 replaces this.
-            PhoneColumn { Text("Your tables") }
+            MasteryGridView()
         }
     }
 }
