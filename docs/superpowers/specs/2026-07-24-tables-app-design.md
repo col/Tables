@@ -384,11 +384,31 @@ clay   #B24A3F                                editorial marker
 **Libre Franklin Regular / SemiBold** — all interface text.
 
 Both are SIL Open Font License and free to ship commercially. Three **static**
-TTFs are bundled (~250KB) rather than the variable files, because SwiftUI's
-`.weight()` does not reliably reach variable-font weight axes.
+TTFs are bundled (~555KB total) rather than the variable files, because
+SwiftUI's `.weight()` does not reliably reach variable-font weight axes.
+
+Sources, verified: Zilla Slab SemiBold from `google/fonts`; Libre Franklin
+Regular and SemiBold from the upstream `impallari/Libre-Franklin` repository.
+The Libre Franklin statics that Google's CDN generates are **not** usable —
+they carry the PostScript name `LibreFranklinThin-Regular` and cover only 228
+glyphs against upstream's 919.
 
 Every size goes through `.custom(_, size:relativeTo:)` so Dynamic Type still
 scales the app.
+
+**Glyph coverage.** Three symbols the prototype sets as text are absent from
+the bundled fonts and would silently fall back to the system face:
+
+| Symbol | Used for | Replacement |
+|---|---|---|
+| `→` | "Your tables →" on Home | SF Symbol `arrow.right` |
+| `⌫` | Number pad delete key | SF Symbol `delete.left` |
+| `↵` | Number pad submit key | SF Symbol `checkmark` |
+
+SF Symbols are the better answer on iOS regardless — they match the system's
+2pt-stroke rounded icon language, scale with Dynamic Type, and are legible to
+VoiceOver. `×` (U+00D7), `·` and `—` are all present in both families and stay
+as text.
 
 Caps labels ("eyebrows") are 11–12pt Libre Franklin SemiBold, uppercase, with
 `0.16em` tracking. Everything else is sentence case. The multiplication sign is
