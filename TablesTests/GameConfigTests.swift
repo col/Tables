@@ -70,6 +70,10 @@ struct GameConfigTests {
         #expect(config(tables: [3, 6, 7]).configKey != base)
         #expect(config(answerMode: .numberPad).configKey != base)
         #expect(config(length: .seconds(30)).configKey != base)
+        // Mode isolated from length: .revision paired with .seconds(60) is a
+        // nonsensical combination in the product, but it's exactly what proves
+        // the key is sensitive to `mode` on its own.
+        #expect(config(mode: .revision, length: .seconds(60)).configKey != base)
     }
 
     @Test("facts cover every multiplicand 1 through 12 for each selected table")
@@ -87,9 +91,65 @@ struct GameConfigTests {
         #expect(config(tables: []).tablesSummary == "None chosen")
     }
 
+    @Test("the compact tables summary uses a single space, unlike the row summary's double space")
+    func compactTablesSummaryMultiTable() {
+        #expect(config(tables: [7, 3]).compactTablesSummary == "×3 ×7")
+    }
+
+    @Test("the compact tables summary collapses to 'all tables' for every table")
+    func compactTablesSummaryAllTables() {
+        #expect(config(tables: Set(1...12)).compactTablesSummary == "all tables")
+    }
+
+    @Test("the compact tables summary falls back to 'none chosen' when empty, matching the sentence case it's interpolated into")
+    func compactTablesSummaryEmpty() {
+        #expect(config(tables: []).compactTablesSummary == "none chosen")
+    }
+
+    @Test("the full summary string matches the design exactly, including separators")
+    func summaryString() {
+        #expect(config().summary == "Countdown \u{00B7} 60 sec \u{00B7} ×3 ×6 ×7 ×8")
+    }
+
     @Test("a config with no tables cannot start")
     func startability() {
         #expect(config().isStartable)
         #expect(!config(tables: []).isStartable)
+    }
+}
+
+struct FactRevealTests {
+
+    @Test("a revealed fact shows the full equation with the multiplication sign")
+    func revealed() {
+        #expect(Fact(a: 7, b: 8).revealed == "7 × 8 = 56")
+    }
+}
+
+struct EnumDisplayStringTests {
+
+    @Test("GameMode display strings")
+    func gameModeStrings() {
+        #expect(GameMode.countdown.title == "Countdown")
+        #expect(GameMode.revision.title == "Revision")
+        #expect(GameMode.countdown.lowercasedTitle == "countdown")
+        #expect(GameMode.revision.lowercasedTitle == "revision")
+        #expect(GameMode.countdown.lengthSectionLabel == "Time limit")
+        #expect(GameMode.revision.lengthSectionLabel == "Length")
+    }
+
+    @Test("AnswerMode display strings")
+    func answerModeStrings() {
+        #expect(AnswerMode.multipleChoice.title == "Multiple choice")
+        #expect(AnswerMode.numberPad.title == "Number pad")
+        #expect(AnswerMode.multipleChoice.subtitle == "Pick from the tiles")
+        #expect(AnswerMode.numberPad.subtitle == "Type the answer")
+    }
+
+    @Test("GameLength chip labels")
+    func gameLengthChipLabels() {
+        #expect(GameLength.seconds(30).chipLabel == "30s")
+        #expect(GameLength.questions(10).chipLabel == "10")
+        #expect(GameLength.endless.chipLabel == "Endless")
     }
 }

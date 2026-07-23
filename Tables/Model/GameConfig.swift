@@ -34,6 +34,7 @@ struct GameConfig: Hashable, Sendable {
 
     /// Single-space variant used in the results eyebrow.
     var compactTablesSummary: String {
+        if tables.isEmpty { return "none chosen" }
         if tables == Self.allTables { return "all tables" }
         return sortedTables.map { "\u{00D7}\($0)" }.joined(separator: " ")
     }
