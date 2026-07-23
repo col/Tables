@@ -73,6 +73,7 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Settings")
+            .accessibilityIdentifier("home.settings")
         }
     }
 
@@ -90,6 +91,7 @@ struct HomeView: View {
         } action: {
             router.openSetup(.countdown)
         }
+        .accessibilityIdentifier("home.countdown")
     }
 
     private var revisionCard: some View {
@@ -113,6 +115,7 @@ struct HomeView: View {
         } action: {
             router.openSetup(.revision)
         }
+        .accessibilityIdentifier("home.revision")
     }
 
     private func modeCard<Motif: View>(
@@ -168,5 +171,6 @@ struct HomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("home.progress")
     }
 }

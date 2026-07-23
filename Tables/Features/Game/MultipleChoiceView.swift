@@ -13,7 +13,8 @@ struct MultipleChoiceView: View {
                 TileButton(
                     label: "\(value)",
                     state: state(for: value),
-                    font: Typography.display(26, relativeTo: .title2)
+                    font: Typography.display(26, relativeTo: .title2),
+                    identifier: "game.option.\(value)"
                 ) {
                     session.submit(value, now: Date())
                 }

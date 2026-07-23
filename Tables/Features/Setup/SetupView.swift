@@ -31,7 +31,8 @@ struct SetupView: View {
 
                 PillButton(
                     "Start \(model.mode.lowercasedTitle)",
-                    isEnabled: model.config.isStartable
+                    isEnabled: model.config.isStartable,
+                    identifier: "setup.start"
                 ) {
                     router.startGame(model.config)
                 }
@@ -88,7 +89,8 @@ struct SetupView: View {
                             label: "\(number)",
                             state: model.tables.contains(number) ? .selected : .neutral,
                             font: Typography.display(20, relativeTo: .title3),
-                            verticalPadding: Metrics.space3
+                            verticalPadding: Metrics.space3,
+                            identifier: "setup.table.\(number)"
                         ) {
                             model.toggle(table: number)
                         }

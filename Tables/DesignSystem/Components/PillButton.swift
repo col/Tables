@@ -9,17 +9,20 @@ struct PillButton: View {
     private let title: String
     private let style: Style
     private let isEnabled: Bool
+    private let identifier: String?
     private let action: () -> Void
 
     init(
         _ title: String,
         style: Style = .primary,
         isEnabled: Bool = true,
+        identifier: String? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.style = style
         self.isEnabled = isEnabled
+        self.identifier = identifier
         self.action = action
     }
 
@@ -35,5 +38,6 @@ struct PillButton: View {
         }
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
+        .accessibilityIdentifier(identifier ?? "")
     }
 }

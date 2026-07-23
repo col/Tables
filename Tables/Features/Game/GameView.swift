@@ -25,7 +25,7 @@ struct GameView: View {
                 if let session {
                     header(session)
                     content(session)
-                    PillButton(session.endLabel, style: .ghost) {
+                    PillButton(session.endLabel, style: .ghost, identifier: "game.end") {
                         if session.endEarly(now: Date()) == .finished {
                             if let summary = session.summary { router.showResults(summary) }
                         } else {
@@ -101,6 +101,7 @@ struct GameView: View {
             .animation(Motion.animation(Motion.fadeAnimation, reduceMotion: reduceMotion), value: isLow)
             .frame(minWidth: 64)
             .accessibilityLabel(isCountdown ? "\(session.secondsRemaining) seconds left" : "\(session.answered) answered")
+            .accessibilityIdentifier("game.status")
     }
 
     private func content(_ session: GameSession) -> some View {
@@ -115,6 +116,7 @@ struct GameView: View {
                     Motion.animation(.easeInOut(duration: 0.22), reduceMotion: reduceMotion),
                     value: session.isFadingOut
                 )
+                .accessibilityIdentifier("game.problem")
 
             // Reserved space, so nothing shifts when feedback appears.
             feedbackPill(session)

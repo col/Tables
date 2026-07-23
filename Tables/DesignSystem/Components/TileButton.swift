@@ -49,6 +49,7 @@ struct TileButton: View {
     private let state: TileState
     private let font: Font
     private let verticalPadding: CGFloat
+    private let identifier: String?
     private let action: () -> Void
 
     @State private var scale: CGFloat = 1
@@ -58,12 +59,14 @@ struct TileButton: View {
         state: TileState,
         font: Font,
         verticalPadding: CGFloat = 18,
+        identifier: String? = nil,
         action: @escaping () -> Void
     ) {
         self.label = label
         self.state = state
         self.font = font
         self.verticalPadding = verticalPadding
+        self.identifier = identifier
         self.action = action
     }
 
@@ -82,6 +85,7 @@ struct TileButton: View {
                 }
                 .scaleEffect(scale)
         }
+        .accessibilityIdentifier(identifier ?? "")
         .buttonStyle(.plain)
         .animation(Motion.animation(Motion.fadeAnimation, reduceMotion: reduceMotion), value: state)
         .onChange(of: state) { _, newState in

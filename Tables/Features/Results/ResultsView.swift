@@ -21,6 +21,7 @@ struct ResultsView: View {
                     Text("\(summary.score)")
                         .font(Typography.display(80, relativeTo: .largeTitle))
                         .foregroundStyle(Color.ink)
+                        .accessibilityIdentifier("results.score")
                     Text(unit)
                         .font(Typography.ui(15, relativeTo: .subheadline))
                         .foregroundStyle(Color.inkSoft)
@@ -46,7 +47,7 @@ struct ResultsView: View {
                 .scrollBounceBehavior(.basedOnSize)
 
                 VStack(spacing: Metrics.space2 + 2) {
-                    PillButton("Play again") { router.playAgain() }
+                    PillButton("Play again", identifier: "results.playAgain") { router.playAgain() }
                     PillButton("Back home", style: .ghost) { router.goHome() }
                 }
                 .padding(.top, Metrics.space3 + 2)
