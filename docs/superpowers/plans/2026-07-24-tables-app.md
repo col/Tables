@@ -2688,10 +2688,16 @@ struct GameSessionTests {
         let (second, _) = makeSession(store: store)
         second.start(now: start.addingTimeInterval(100))
         second.submit(second.fact.answer, now: start.addingTimeInterval(101))
-        second.submit(second.fact.answer, now: start.addingTimeInterval(101))
+        // Advance past the feedback hold to the next question before answering
+        // again — two submits at the same instant would be one scoring answer
+        // plus one swallowed double-tap, leaving the second run tied with the
+        // first rather than beating it.
+        run(second, from: start.addingTimeInterval(101), to: start.addingTimeInterval(103))
+        second.submit(second.fact.answer, now: start.addingTimeInterval(104))
         _ = second.endEarly(now: start.addingTimeInterval(120))
 
         let summary = try! #require(second.summary)
+        #expect(second.score == 2)
         #expect(summary.board.previousBest == 1)
         #expect(summary.board.isNewBest)
     }
