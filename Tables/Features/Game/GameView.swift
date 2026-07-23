@@ -157,9 +157,3 @@ struct GameView: View {
         }
     }
 }
-
-// Replaced by Task 16.
-struct NumberPadView: View {
-    let session: GameSession
-    var body: some View { Color.clear }
-}
