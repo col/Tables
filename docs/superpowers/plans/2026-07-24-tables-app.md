@@ -531,7 +531,7 @@ single place."
 **Interfaces:**
 - Consumes: nothing.
 - Produces:
-  - `struct Fact: Hashable, Sendable { let a: Int; let b: Int; var answer: Int; var key: String; var display: String }`
+  - `struct Fact: Hashable, Sendable, Identifiable { let a: Int; let b: Int; var answer: Int; var key: String; var display: String; var revealed: String }` — `revealed` is the full "7 × 8 = 56" form shown after a wrong answer in Revision
   - `enum GameMode: String, CaseIterable, Codable, Sendable { case countdown, revision }` with `var title: String`, `var lowercasedTitle: String`, `var lengthSectionLabel: String`
   - `enum AnswerMode: String, CaseIterable, Codable, Sendable { case multipleChoice, numberPad }` with `var title: String`, `var subtitle: String`
   - `enum GameLength: Hashable, Codable, Sendable { case seconds(Int); case questions(Int); case endless }` with `var key: String`, `var summary: String`, `static let countdownOptions: [GameLength]`, `static let revisionOptions: [GameLength]`
