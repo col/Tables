@@ -283,9 +283,19 @@ Per fact, from `FactStat`:
 
 | Level | Rule | Colour |
 |---|---|---|
-| Mastered | `correctCount >= 3 && averageMillis < 3000` | Sage |
+| Mastered | `timedCorrectCount >= 3 && averageMillis < 3000` | Sage |
 | Getting there | `attempts > 0`, bar not met | Butter |
 | Not yet | `attempts == 0` | Neutral tile |
+
+**`timedCorrectCount`, not `correctCount`.** The mastery bar counts only
+correct answers that carried a trustworthy timing — the `timedCorrectCount`
+`FactStat` exposes as `FactHistory.correctCount`. A plain `correctCount >= 3`
+would be a false-mastery hole: three untimed correct answers (Countdown retries
+after a wrong first attempt, recorded with `millis: nil` per section 4) leave
+`averageMillis` at 0, which trivially satisfies `< 3000`, so a fact the child
+has only ever fumbled through would read as "Mastered". Do not "simplify"
+`FactStat.history` back to `correctCount`; `FactStatTests.untimedFirstCorrectStaysZero`
+guards against exactly that.
 
 The prototype's hash-based demo pattern — which fabricates a plausible-looking
 grid when there is no data — is **removed entirely**. An empty grid is all "Not
