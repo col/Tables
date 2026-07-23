@@ -1,18 +1,12 @@
 import SwiftUI
 
-/// A pure value type carrying no shared mutable state; declared `nonisolated`
-/// so it (and its synthesised `Equatable` conformance) can be used from
-/// non-isolated contexts per the project's actor-isolation constraints. Its
-/// colour-returning properties are individually `@MainActor` because the
-/// `Color` tokens they read are themselves main-actor isolated by the
-/// target's default actor isolation; they're only ever read from view bodies.
-nonisolated enum TileState {
+/// The state → colour/stroke/text mapping for a tile.
+enum TileState {
     case neutral
     case selected
     case correct
     case incorrect
 
-    @MainActor
     var fill: Color {
         switch self {
         case .neutral: .paper
@@ -22,7 +16,6 @@ nonisolated enum TileState {
         }
     }
 
-    @MainActor
     var stroke: Color {
         switch self {
         case .neutral: .line
@@ -32,7 +25,6 @@ nonisolated enum TileState {
         }
     }
 
-    @MainActor
     var text: Color {
         switch self {
         case .neutral: .ink
