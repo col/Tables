@@ -43,6 +43,16 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     /// from the previous question could kill or answer the current one.
     private var generation = 0
 
+    /// A recognised number that might still be growing ("twenty" → "twenty
+    /// one"), held until the stream settles rather than fired on the first
+    /// partial. Cleared once it fires or the recogniser stops.
+    private var pendingNumber: Int?
+    private var settleTask: Task<Void, Never>?
+    /// How long a still-growing number must go without a newer partial before it
+    /// submits — long enough to bridge the gap between the words of a compound
+    /// number, short enough to stay responsive. Tuned by ear on device.
+    private static let settleInterval: Duration = .milliseconds(400)
+
     /// Set on an interruption's `.began` so we know whether to resume on `.ended`.
     private var wasListeningBeforeInterruption = false
     private var interruptionObserver: NSObjectProtocol?
@@ -126,19 +136,38 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
             Task { @MainActor in
                 // Ignore a callback from a task that a later start() superseded.
                 guard generation == self.generation else { return }
-                if let result, let number = SpokenNumberParser.parse(result.bestTranscription.formattedString) {
-                    self.fire(number)
+                if let result {
+                    let number = SpokenNumberParser.parse(result.bestTranscription.formattedString)
+                    if result.isFinal {
+                        // The transcript is settled: submit the number now, or —
+                        // if nothing parseable was heard (a run of silence) —
+                        // restart so the question keeps listening rather than
+                        // going deaf.
+                        self.cancelSettle()
+                        if let number {
+                            self.fire(number)
+                        } else {
+                            self.restartListening()
+                        }
+                    } else if let number, !self.isExtendable(number) {
+                        // A number that can't grow by saying more ("forty two",
+                        // "seven") — submit immediately.
+                        self.cancelSettle()
+                        self.fire(number)
+                    } else {
+                        // Either an extendable number ("twenty", which may still
+                        // become "twenty one") or any partial while one is
+                        // pending: hold it and wait for the stream to go quiet,
+                        // so a compound number isn't clipped to its prefix.
+                        if let number { self.pendingNumber = number }
+                        if self.pendingNumber != nil { self.armSettleTimer() }
+                    }
                 } else if error != nil {
                     // Errors (including audio-session interruptions) end the
                     // task. Interruptions are recovered by the interruption
                     // observer; other errors just stop. We deliberately do NOT
                     // auto-restart on error, to avoid a tight failure loop.
                     self.stop()
-                } else if result?.isFinal == true {
-                    // The task finalised (e.g. after a run of silence) without a
-                    // parseable number, but the question is still being asked —
-                    // restart so voice keeps listening rather than going deaf.
-                    self.restartListening()
                 }
             }
         }
@@ -152,6 +181,7 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         // recogniser is already stopped (`.began` stopped it), so a phase-change
         // stop() arrives with `isRunning == false` and must still clear the flag.
         wasListeningBeforeInterruption = false
+        cancelSettle()
         guard isRunning else { return }
         isRunning = false
 
@@ -197,6 +227,36 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         default:
             break
         }
+    }
+
+    /// Whether a recognised number might still grow if the child keeps speaking:
+    /// the tens ("twenty" → "twenty one"), "one" (→ "one hundred …"), and any
+    /// hundred (over-inclusive on purpose — a brief wait on 100–144 costs only a
+    /// beat, whereas firing early would clip "one hundred forty four" to a
+    /// prefix). Everything else in 1…144 is terminal and can submit at once.
+    private func isExtendable(_ number: Int) -> Bool {
+        number == 1 || (number >= 20 && number <= 90 && number % 10 == 0) || number >= 100
+    }
+
+    /// (Re)start the settle timer for `pendingNumber`. Every fresh partial resets
+    /// it, so the number only submits once the stream has been quiet for
+    /// `settleInterval` — i.e. the child has finished speaking it.
+    private func armSettleTimer() {
+        let generation = self.generation
+        settleTask?.cancel()
+        settleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.settleInterval)
+            guard !Task.isCancelled, let self, self.generation == generation,
+                  let pending = self.pendingNumber else { return }
+            self.cancelSettle()
+            self.fire(pending)
+        }
+    }
+
+    private func cancelSettle() {
+        settleTask?.cancel()
+        settleTask = nil
+        pendingNumber = nil
     }
 
     private func fire(_ number: Int) {
