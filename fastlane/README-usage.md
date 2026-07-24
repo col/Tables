@@ -10,6 +10,11 @@
 4. Edit `fastlane/metadata/en-US/description.txt` and the three `*_url.txt`
    files with real values (no example.com — Apple rejects those).
 5. Accept any pending agreements in App Store Connect (free-app agreement).
+6. Make sure the app record for `com.challengr.Tables` already exists in
+   App Store Connect. The `beta`/`release` lanes upload to it but do not
+   create it — the first `fastlane beta` fails at `latest_testflight_build_number`
+   if the app hasn't been registered (register it in the App Store Connect UI,
+   or once with `bundle exec fastlane produce`).
 
 ## Commands
 - `bundle exec fastlane screenshots` — regenerate App Store screenshots.
