@@ -17,7 +17,11 @@ final class GameFlowUITests: XCTestCase {
         XCTAssertTrue(countdown.waitForExistence(timeout: 10))
         countdown.tap()
 
-        // Setup: a single table and the shortest run keeps the test quick.
+        // Setup: nothing is preselected, so pick a table to enable Start.
+        let table = app.buttons["setup.table.3"]
+        XCTAssertTrue(table.waitForExistence(timeout: 5))
+        table.tap()
+
         let start = app.buttons["setup.start"]
         XCTAssertTrue(start.waitForExistence(timeout: 5))
         start.tap()
@@ -28,11 +32,9 @@ final class GameFlowUITests: XCTestCase {
         XCTAssertTrue(problem.label.contains("\u{00D7}"), "the problem should use ×, got \(problem.label)")
         XCTAssertTrue(app.staticTexts["game.status"].exists)
 
-        // Answer correctly, then end the run early rather than waiting out the
-        // clock. A wrong tap in Countdown mode just retries the same
-        // question and never increments `answered`, which would make
-        // `endEarly` report `.abandoned` and send us back Home instead of to
-        // Results — so pick the option that actually matches the problem.
+        // Answer one question correctly. Under `-uiTesting` the countdown is
+        // capped to a few seconds, so the clock then runs out on its own and
+        // carries us to Results — there is no longer an End button.
         let factors = problem.label
             .components(separatedBy: "\u{00D7}")
             .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
@@ -43,12 +45,8 @@ final class GameFlowUITests: XCTestCase {
         XCTAssertTrue(option.waitForExistence(timeout: 5))
         option.tap()
 
-        let end = app.buttons["game.end"]
-        XCTAssertTrue(end.waitForExistence(timeout: 5))
-        end.tap()
-
-        // Results
-        XCTAssertTrue(app.staticTexts["results.score"].waitForExistence(timeout: 5))
+        // Results (arrives when the capped clock expires).
+        XCTAssertTrue(app.staticTexts["results.score"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["results.playAgain"].exists)
     }
 

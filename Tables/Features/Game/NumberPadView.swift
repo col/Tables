@@ -18,11 +18,26 @@ struct NumberPadView: View {
         .delete, .digit(0), .submit
     ]
 
-    private var displayBorder: Color {
+    /// The entry display echoes the answer state: sage on a correct answer,
+    /// blush while a wrong answer is shown (Countdown feedback or the Revision
+    /// "Try again" review).
+    private var isWrong: Bool {
         switch session.phase {
-        case .feedback(let isCorrect, _): isCorrect ? .sage : .blush
-        default: .line
+        case .feedback(let isCorrect, _): !isCorrect
+        case .reviewing: true
+        default: false
         }
+    }
+
+    private var isCorrect: Bool {
+        if case .feedback(true, _) = session.phase { return true }
+        return false
+    }
+
+    private var displayBorder: Color {
+        if isCorrect { return .sage }
+        if isWrong { return .blush }
+        return .line
     }
 
     var body: some View {
@@ -43,11 +58,11 @@ struct NumberPadView: View {
     private var entryDisplay: some View {
         Text(session.padValue.isEmpty ? " " : session.padValue)
             .font(Typography.display(34, relativeTo: .largeTitle))
-            .foregroundStyle(Color.ink)
+            .foregroundStyle(isWrong ? Color.blushText : Color.ink)
             .monospacedDigit()
             .frame(maxWidth: .infinity)
             .frame(height: 60)
-            .background(Color.paper)
+            .background(isWrong ? Color.blushTint : Color.paper)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.radiusTile, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Metrics.radiusTile, style: .continuous)

@@ -120,9 +120,9 @@ struct GameConfigTests {
 
 struct FactRevealTests {
 
-    @Test("a revealed fact shows the full equation with the multiplication sign")
-    func revealed() {
-        #expect(Fact(a: 7, b: 8).revealed == "7 × 8 = 56")
+    @Test("a revealed answer reads as an equals clause")
+    func answerReveal() {
+        #expect(Fact(a: 7, b: 8).answerReveal == "= 56")
     }
 }
 

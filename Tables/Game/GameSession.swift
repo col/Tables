@@ -37,11 +37,9 @@ final class GameSession {
     enum Phase: Equatable {
         case asking
         case feedback(isCorrect: Bool, text: String)
-        case finished
-    }
-
-    enum EndOutcome: Equatable {
-        case abandoned
+        /// Revision only: answered wrong, the correct answer is shown, and the
+        /// game waits for the child to tap "Try again". No auto-advance.
+        case reviewing
         case finished
     }
 
@@ -125,10 +123,6 @@ final class GameSession {
         return "\(answered)"
     }
 
-    var endLabel: String {
-        config.mode == .revision && config.length == .endless ? "Finish" : "End session"
-    }
-
     var canSubmitPad: Bool { !padValue.isEmpty }
 
     var feedbackText: String {
@@ -163,10 +157,12 @@ final class GameSession {
                 store.recordCorrect(fact, millis: firstAttemptWasWrong ? nil : millis, at: now)
                 score += 1
                 answered += 1
+                revealAnswer = true
                 feedback.correct()
                 phase = .feedback(isCorrect: true, text: Self.praise.randomElement(using: &rng)!)
                 holdUntil = now.addingTimeInterval(Self.countdownCorrectHold)
             } else {
+                // The answer is not revealed — they retry the same question.
                 store.recordIncorrect(fact, at: now)
                 firstAttemptWasWrong = true
                 feedback.incorrect()
@@ -175,20 +171,40 @@ final class GameSession {
             }
 
         case .revision:
-            answered += 1
+            revealAnswer = true
             if isCorrect {
-                store.recordCorrect(fact, millis: millis, at: now)
+                // A correct answer only after a wrong attempt goes untimed.
+                store.recordCorrect(fact, millis: firstAttemptWasWrong ? nil : millis, at: now)
                 score += 1
+                answered += 1
                 feedback.correct()
                 phase = .feedback(isCorrect: true, text: Self.praise.randomElement(using: &rng)!)
+                holdUntil = now.addingTimeInterval(Self.revisionHold)
             } else {
+                // Reveal the answer and wait for "Try again" — no auto-advance,
+                // and the question is not counted until it is answered right.
                 store.recordIncorrect(fact, at: now)
-                revealAnswer = true
+                firstAttemptWasWrong = true
                 feedback.incorrect()
-                phase = .feedback(isCorrect: false, text: fact.revealed)
+                phase = .reviewing
             }
-            holdUntil = now.addingTimeInterval(Self.revisionHold)
         }
+    }
+
+    /// Re-present the current question after a wrong Revision answer. Multiple
+    /// choice options are regenerated; the fact is unchanged and the earlier
+    /// wrong attempt still makes any eventual correct answer untimed.
+    func tryAgain(now: Date) {
+        guard phase == .reviewing else { return }
+        options = config.answerMode == .multipleChoice
+            ? DistractorGenerator.options(for: fact, count: optionCount, using: &rng)
+            : []
+        padValue = ""
+        pickedValue = nil
+        revealAnswer = false
+        isFadingOut = false
+        questionStartedAt = now
+        phase = .asking
     }
 
     func padAppend(_ digit: Int) {
@@ -238,15 +254,6 @@ final class GameSession {
             isFadingOut = true
             fadeUntil = now.addingTimeInterval(Self.fadeDuration)
         }
-    }
-
-    func endEarly(now: Date) -> EndOutcome {
-        // A second tap on End/Finish, or a race with the clock finishing on
-        // its own, must not record the run twice or recompute the board.
-        guard phase != .finished else { return .finished }
-        guard answered > 0 else { return .abandoned }
-        finish(now: now)
-        return .finished
     }
 
     /// The app went to the background. Deadlines resume where they left off.

@@ -4,11 +4,12 @@ import Testing
 @MainActor
 struct SetupModelTests {
 
-    @Test("countdown opens on the tables section with sensible defaults")
+    @Test("countdown opens on the tables section with nothing preselected")
     func countdownDefaults() {
         let model = SetupModel(mode: .countdown)
         #expect(model.openSection == .tables)
-        #expect(model.tables == [3, 6, 7, 8])
+        #expect(model.tables.isEmpty)
+        #expect(!model.config.isStartable, "Start should wait until a table is chosen")
         #expect(model.answerMode == .multipleChoice)
         #expect(model.length == .seconds(60))
         #expect(model.lengthOptions == GameLength.countdownOptions)

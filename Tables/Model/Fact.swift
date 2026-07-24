@@ -18,6 +18,6 @@ nonisolated struct Fact: Hashable, Sendable, Identifiable {
     /// Uses U+00D7, never a lowercase letter x.
     var display: String { "\(a) \u{00D7} \(b)" }
 
-    /// The fully revealed fact, shown after a wrong answer in Revision.
-    var revealed: String { "\(display) = \(answer)" }
+    /// The answer shown inline beside the question once revealed, e.g. "= 56".
+    var answerReveal: String { "= \(answer)" }
 }

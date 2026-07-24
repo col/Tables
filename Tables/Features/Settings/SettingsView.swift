@@ -43,6 +43,7 @@ struct SettingsView: View {
                             }
                         }
                         .padding(Metrics.space4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     Spacer()

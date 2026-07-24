@@ -1,17 +1,18 @@
 import SwiftUI
 
-/// Three pastel squares beside the wordmark. Reproduced from the design
-/// project — this is the mark, not a placeholder for one.
+/// The app icon, scaled down, beside the wordmark. This is the mark, not a
+/// placeholder for one.
 struct BrandMark: View {
+    private let iconSize: CGFloat = 30
+
     var body: some View {
         HStack(spacing: Metrics.space2 + 2) {
-            HStack(spacing: 3) {
-                ForEach([Color.sage, .butter, .sky], id: \.self) { color in
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(color)
-                        .frame(width: 15, height: 15)
-                }
-            }
+            Image("BrandIcon")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: iconSize, height: iconSize)
+                // Matches the iOS icon squircle proportion (~22.4% of the side).
+                .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.2237, style: .continuous))
             Text("Tables")
                 .font(Typography.display(22, relativeTo: .title3))
                 .foregroundStyle(Color.ink)

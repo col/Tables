@@ -18,7 +18,9 @@ final class SetupModel {
 
     init(mode: GameMode) {
         self.mode = mode
-        self.tables = [3, 6, 7, 8]
+        // No tables are preselected — the child chooses which to practise, so
+        // Start stays disabled until at least one is picked.
+        self.tables = []
         self.answerMode = .multipleChoice
         self.length = mode == .countdown ? .seconds(60) : .questions(20)
         self.openSection = .tables

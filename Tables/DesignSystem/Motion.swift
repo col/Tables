@@ -7,6 +7,7 @@ enum Motion {
     static let fade: TimeInterval = 0.18
     static let pop: TimeInterval = 0.30
     static let flip: TimeInterval = 0.40
+    static let reveal: TimeInterval = 0.46
 
     /// Single source of truth for the cubic-bezier(0.22, 1, 0.36, 1) curve
     /// shared by `easeOut` and `popAnimation`.
@@ -23,6 +24,12 @@ enum Motion {
         easeOutStartControlPoint.x, easeOutStartControlPoint.y,
         easeOutEndControlPoint.x, easeOutEndControlPoint.y,
         duration: pop
+    )
+    /// The question settling left while the answer fades in beside it.
+    static let revealAnimation = Animation.timingCurve(
+        easeOutStartControlPoint.x, easeOutStartControlPoint.y,
+        easeOutEndControlPoint.x, easeOutEndControlPoint.y,
+        duration: reveal
     )
 
     /// Single place where Reduce Motion is honoured, so no view has to

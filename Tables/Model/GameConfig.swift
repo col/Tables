@@ -50,7 +50,7 @@ nonisolated struct GameConfig: Hashable, Sendable {
 
     static let `default` = GameConfig(
         mode: .countdown,
-        tables: [3, 6, 7, 8],
+        tables: [],
         answerMode: .multipleChoice,
         length: .seconds(60)
     )

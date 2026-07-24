@@ -25,14 +25,6 @@ struct GameView: View {
                 if let session {
                     header(session)
                     content(session)
-                    PillButton(session.endLabel, style: .ghost, identifier: "game.end") {
-                        if session.endEarly(now: Date()) == .finished {
-                            if let summary = session.summary { router.showResults(summary) }
-                        } else {
-                            router.goHome()
-                        }
-                    }
-                    .padding(.bottom, Metrics.space3 + 2)
                 } else {
                     Color.canvas
                 }
@@ -63,7 +55,7 @@ struct GameView: View {
         // the rest.
         player.prepare()
         let created = GameSession(
-            config: config,
+            config: effectiveConfig,
             store: SwiftDataProgressStore(context: modelContext),
             optionCount: settings.multipleChoiceOptionCount,
             feedback: player,
@@ -71,6 +63,17 @@ struct GameView: View {
         )
         created.start(now: Date())
         session = created
+    }
+
+    /// A UI smoke test cannot sit out a real 30–120s countdown, so the
+    /// `-uiTesting` launch argument caps it to a few seconds. This is the only
+    /// place in the app that reads the flag, and it only shortens a countdown.
+    private var effectiveConfig: GameConfig {
+        guard ProcessInfo.processInfo.arguments.contains("-uiTesting"),
+              case .seconds = config.length else { return config }
+        var shortened = config
+        shortened.length = .seconds(8)
+        return shortened
     }
 
     private func header(_ session: GameSession) -> some View {
@@ -108,19 +111,11 @@ struct GameView: View {
         VStack(spacing: 0) {
             Spacer(minLength: Metrics.space4)
 
-            Text(session.fact.display)
-                .font(Typography.display(config.answerMode == .multipleChoice ? 56 : 52, relativeTo: .largeTitle))
-                .foregroundStyle(Color.ink)
-                .opacity(session.isFadingOut ? 0 : 1)
-                .animation(
-                    Motion.animation(.easeInOut(duration: 0.22), reduceMotion: reduceMotion),
-                    value: session.isFadingOut
-                )
-                .accessibilityIdentifier("game.problem")
+            problem(session)
 
             // Reserved space, so nothing shifts when feedback appears.
-            feedbackPill(session)
-                .frame(height: 34)
+            reviewControls(session)
+                .frame(height: 40)
                 .padding(.top, Metrics.space3)
 
             Spacer(minLength: Metrics.space4)
@@ -143,9 +138,42 @@ struct GameView: View {
         }
     }
 
+    /// The problem, hero-sized. When the answer is revealed it settles left and
+    /// "= 56" fades in beside it.
+    private func problem(_ session: GameSession) -> some View {
+        let size: CGFloat = config.answerMode == .multipleChoice ? 56 : 52
+        return HStack(spacing: Metrics.space4) {
+            Text(session.fact.display)
+                .font(Typography.display(size, relativeTo: .largeTitle))
+                .foregroundStyle(Color.ink)
+
+            if session.revealAnswer {
+                Text(session.fact.answerReveal)
+                    .font(Typography.display(size, relativeTo: .largeTitle))
+                    .foregroundStyle(Color.ink)
+                    .transition(.opacity.combined(with: .offset(x: -10)))
+            }
+        }
+        .opacity(session.isFadingOut ? 0 : 1)
+        .animation(
+            Motion.animation(.easeInOut(duration: 0.22), reduceMotion: reduceMotion),
+            value: session.isFadingOut
+        )
+        .animation(
+            Motion.animation(Motion.revealAnimation, reduceMotion: reduceMotion),
+            value: session.revealAnswer
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("game.problem")
+    }
+
+    /// Reserved strip below the problem: a praise / "try again" pill after most
+    /// answers, or an interactive "Try again" button while reviewing a wrong
+    /// Revision answer.
     @ViewBuilder
-    private func feedbackPill(_ session: GameSession) -> some View {
-        if case .feedback(let isCorrect, let text) = session.phase {
+    private func reviewControls(_ session: GameSession) -> some View {
+        switch session.phase {
+        case .feedback(let isCorrect, let text):
             Text(text)
                 .font(Typography.ui(14, weight: .semibold, relativeTo: .subheadline))
                 .foregroundStyle(isCorrect ? Color.sageText : Color.blushText)
@@ -154,7 +182,23 @@ struct GameView: View {
                 .background(isCorrect ? Color.sageTint : Color.blushTint)
                 .clipShape(Capsule())
                 .transition(.opacity)
-        } else {
+        case .reviewing:
+            Button {
+                session.tryAgain(now: Date())
+            } label: {
+                Text("Try again")
+                    .font(Typography.ui(14, weight: .semibold, relativeTo: .subheadline))
+                    .foregroundStyle(Color.ink)
+                    .padding(.vertical, 9)
+                    .padding(.horizontal, Metrics.space6)
+                    .overlay {
+                        Capsule().strokeBorder(Color.ink, lineWidth: 1.5)
+                    }
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity)
+            .accessibilityIdentifier("game.tryagain")
+        default:
             Color.clear
         }
     }

@@ -215,31 +215,53 @@ short, pad upward with `answer + n`. The final set is shuffled.
 
 ### Answering
 
+When an answer is **correct**, the answer settles in beside the question — the
+problem slides left and "= 56" fades in — so the child always sees the whole
+fact written out. Implemented with `Fact.answerReveal` and a `revealAnswer`
+flag on the session.
+
 **Countdown**
-- Correct → praise pill, score +1, brief pause, cross-fade to next question.
-- Wrong → "Not quite — try again" pill, the question stays, they retry. Time
-  is the only penalty, so the score remains a clean count of correct answers.
+- Correct → the answer reveals inline, praise pill, score +1, brief pause,
+  cross-fade to next question.
+- Wrong → "Not quite — try again" pill, the answer is **not** revealed, the
+  question stays and they retry. Time is the only penalty, so the score
+  remains a clean count of correct answers.
 
 **Revision**
-- Correct → praise pill, score +1.
-- Wrong → the full fact is revealed ("7 × 8 = 56"); in multiple choice the
-  correct tile also turns sage.
-- Either way, advance after a pause.
+- Correct → the answer reveals inline, praise pill, score +1, advance after a
+  pause.
+- Wrong → the answer reveals inline (in multiple choice the correct tile also
+  turns sage, the chosen tile turns blush) and a **"Try again"** button
+  appears. There is no auto-advance: the question is not counted and does not
+  move on until it is answered correctly. "Try again" re-presents the same
+  question, regenerating the multiple-choice options. A question first missed
+  and only later answered correctly is recorded untimed — the same
+  "retry proves knowledge, not speed" rule as Countdown.
+
+*Divergence from prototype: the earlier build revealed the fact in a feedback
+pill and auto-advanced on a wrong Revision answer. The reveal is now inline and
+a wrong Revision answer waits for "Try again".*
 
 Praise is drawn from a fixed set — "Nice!", "Correct!", "Well done!", "Great!",
 "Yes!", "Spot on!", "Brilliant!", "Perfect!", "That's it!", "Lovely!". No
 emoji, ever. That is a brand rule, not a preference.
 
 Timing constants, from the prototype: 750ms correct hold (Countdown), 850ms
-wrong hold (Countdown), 1300ms hold (Revision), 240ms cross-fade.
+wrong hold (Countdown), 1300ms hold (correct Revision), 240ms cross-fade, 460ms
+answer reveal.
 
 ### Termination
 
 - **Countdown** — clock reaches zero.
-- **Revision, fixed length** — `answered` reaches the chosen count.
-- **Revision, Endless** — the child taps "Finish".
-- **Any mode** — "End session" ends early. If nothing has been answered yet,
-  return home without recording a run.
+- **Revision, fixed length** — `answered` (correct answers) reaches the chosen
+  count.
+- **Revision, Endless** — runs until the child leaves with the back button.
+
+There is no in-game "End session" button. The back button abandons the run
+without recording it. Because there is no early-finish, Endless Revision never
+reaches the results screen — it is open-ended practice.
+
+*Divergence from prototype: the "End session / Finish" button has been removed.*
 
 ### Countdown timer
 
@@ -321,7 +343,9 @@ Back button and mode title. Three accordion cards, one open at a time,
 defaulting to Tables:
 
 1. **Tables** — 4×3 grid of 1–12, multi-select, with Select all / Clear all.
-   Summary shows "×3 ×6 ×7 ×8" or "All tables".
+   Nothing is preselected — the child chooses which tables to practise, and the
+   Start button stays disabled until at least one is picked. The summary reads
+   "None chosen" until then, otherwise "×3 ×6 ×7 ×8" or "All tables".
 2. **Answer mode** — Multiple choice / Number pad radio rows, plus a disabled
    Voice row with a lilac "Soon" chip.
 3. **Time limit** (Countdown: 30/60/90/120s) or **Length** (Revision:
@@ -334,11 +358,13 @@ selected.
 Back button, mode eyebrow, and either the countdown timer pill or a Revision
 progress pill (`12/20`, or a bare count when Endless).
 
-The problem is the hero, set large in Zilla Slab. Below it, either the multiple
-choice grid or the number pad with its own value display. A feedback pill
-occupies reserved space between them so nothing shifts when it appears.
+The problem is the hero, set large in Zilla Slab; on a correct answer the
+answer reveals inline beside it. Below it, either the multiple choice grid or
+the number pad with its own value display. A reserved strip between them holds
+the feedback pill or, while reviewing a wrong Revision answer, the "Try again"
+button — so nothing shifts when it appears.
 
-A ghost "End session" / "Finish" button sits at the bottom.
+There is no bottom button; the back button in the header leaves the game.
 
 **Number pad:** keys 1–9, ⌫, 0, ↵ in a 3×4 grid. Entry capped at 3 digits.
 Submit is enabled only with a value entered.

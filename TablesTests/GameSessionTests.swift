@@ -46,6 +46,7 @@ struct GameSessionTests {
         session.submit(first.answer, now: start.addingTimeInterval(1))
         #expect(session.score == 1)
         #expect(session.answered == 1)
+        #expect(session.revealAnswer, "a correct answer should reveal itself inline")
         if case .feedback(let isCorrect, let text) = session.phase {
             #expect(isCorrect)
             #expect(!text.isEmpty)
@@ -73,6 +74,8 @@ struct GameSessionTests {
         } else {
             Issue.record("expected feedback phase, got \(session.phase)")
         }
+
+        #expect(!session.revealAnswer, "a wrong Countdown answer must not reveal it")
 
         run(session, from: start.addingTimeInterval(1), to: start.addingTimeInterval(3))
         #expect(session.phase == .asking)
@@ -180,19 +183,19 @@ struct GameSessionTests {
 
     // MARK: Revision
 
-    @Test("a wrong answer reveals the fact and moves on")
-    func revisionRevealsAndAdvances() {
+    @Test("a correct answer reveals the answer inline, scores, and advances")
+    func revisionCorrectRevealsAndAdvances() {
         let (session, _) = makeSession(mode: .revision, length: .questions(10))
         session.start(now: start)
         let first = session.fact
 
-        session.submit(first.answer + 3, now: start.addingTimeInterval(1))
+        session.submit(first.answer, now: start.addingTimeInterval(1))
         #expect(session.answered == 1)
-        #expect(session.score == 0)
+        #expect(session.score == 1)
         #expect(session.revealAnswer)
         if case .feedback(let isCorrect, let text) = session.phase {
-            #expect(!isCorrect)
-            #expect(text == first.revealed)
+            #expect(isCorrect)
+            #expect(!text.isEmpty)
         } else {
             Issue.record("expected feedback phase")
         }
@@ -200,6 +203,58 @@ struct GameSessionTests {
         run(session, from: start.addingTimeInterval(1), to: start.addingTimeInterval(4))
         #expect(session.fact != first)
         #expect(session.phase == .asking)
+    }
+
+    @Test("a wrong answer reveals the answer and waits for Try again")
+    func revisionWrongWaitsForTryAgain() {
+        let (session, _) = makeSession(mode: .revision, length: .questions(10))
+        session.start(now: start)
+        let first = session.fact
+
+        session.submit(first.answer + 3, now: start.addingTimeInterval(1))
+        #expect(session.phase == .reviewing)
+        #expect(session.revealAnswer)
+        #expect(session.answered == 0, "a wrong answer must not count toward the target")
+        #expect(session.score == 0)
+
+        // It never advances on its own — the child must tap Try again.
+        run(session, from: start.addingTimeInterval(1), to: start.addingTimeInterval(6))
+        #expect(session.phase == .reviewing)
+        #expect(session.fact == first)
+    }
+
+    @Test("Try again re-presents the same question with fresh options")
+    func revisionTryAgainRepresentsQuestion() {
+        let (session, _) = makeSession(mode: .revision, length: .questions(10))
+        session.start(now: start)
+        let first = session.fact
+        let firstOptions = session.options
+
+        session.submit(first.answer + 3, now: start.addingTimeInterval(1))
+        session.tryAgain(now: start.addingTimeInterval(2))
+
+        #expect(session.phase == .asking)
+        #expect(session.fact == first)
+        #expect(!session.revealAnswer)
+        #expect(session.pickedValue == nil)
+        #expect(session.options.count == firstOptions.count)
+        #expect(session.options.contains(first.answer))
+    }
+
+    @Test("an answer got right only after Try again is not timed")
+    func revisionRetryRecordsNoTiming() {
+        let (session, store) = makeSession(mode: .revision, length: .questions(10))
+        session.start(now: start)
+        let first = session.fact
+
+        session.submit(first.answer + 1, now: start.addingTimeInterval(1))
+        session.tryAgain(now: start.addingTimeInterval(2))
+        session.submit(first.answer, now: start.addingTimeInterval(3))
+
+        #expect(session.score == 1)
+        #expect(session.answered == 1)
+        let history = store.history()[first.key]!
+        #expect(history.correctCount == 0, "a retried Revision answer was timed")
     }
 
     @Test("a fixed-length session ends after exactly the chosen number of questions")
@@ -223,11 +278,10 @@ struct GameSessionTests {
         #expect(store.runs(forConfigKey: session.config.configKey).count == 1)
     }
 
-    @Test("an endless session keeps going until the child finishes it")
+    @Test("an endless session keeps going and never finishes on its own")
     func endlessRunsOn() {
         let (session, _) = makeSession(mode: .revision, length: .endless)
         session.start(now: start)
-        #expect(session.endLabel == "Finish")
 
         var now = start
         for _ in 1...25 {
@@ -239,9 +293,6 @@ struct GameSessionTests {
         }
         #expect(session.phase != .finished)
         #expect(session.answered == 25)
-
-        #expect(session.endEarly(now: now) == .finished)
-        #expect(session.phase == .finished)
     }
 
     @Test("the progress pill counts up, and shows a target when there is one")
@@ -255,63 +306,34 @@ struct GameSessionTests {
         #expect(endless.revisionProgressText == "0")
     }
 
-    // MARK: Ending early
+    // MARK: Finishing and the score board
 
-    @Test("quitting before answering anything records nothing")
-    func abandoningRecordsNothing() {
-        let (session, store) = makeSession()
-        session.start(now: start)
-        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .abandoned)
-        #expect(store.runs(forConfigKey: session.config.configKey).isEmpty)
-        #expect(session.phase != .finished)
-    }
-
-    @Test("quitting after answering records the run")
-    func endingEarlyRecordsTheRun() {
-        let (session, store) = makeSession()
-        session.start(now: start)
-        session.submit(session.fact.answer, now: start.addingTimeInterval(1))
-
-        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .finished)
-        #expect(session.phase == .finished)
-        let runs = store.runs(forConfigKey: session.config.configKey)
-        #expect(runs.count == 1)
-        #expect(runs[0].score == 1)
-    }
-
-    @Test("a second end tap does not record the run twice")
-    func endingTwiceRecordsOneRun() {
-        let (session, store) = makeSession()
-        session.start(now: start)
-        session.submit(session.fact.answer, now: start.addingTimeInterval(1))
-
-        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .finished)
-        // A double-tap, or a race with the clock finishing on its own.
-        #expect(session.endEarly(now: start.addingTimeInterval(2)) == .finished)
-
-        #expect(store.runs(forConfigKey: session.config.configKey).count == 1)
-    }
-
-    @Test("the summary carries the score board")
+    @Test("the summary carries the score board across runs")
     func summaryCarriesTheBoard() {
         let store = InMemoryProgressStore()
-        let (first, _) = makeSession(store: store)
+
+        // First run: one correct answer, then let the clock expire.
+        let (first, _) = makeSession(length: .seconds(5), store: store)
         first.start(now: start)
         first.submit(first.fact.answer, now: start.addingTimeInterval(1))
-        _ = first.endEarly(now: start.addingTimeInterval(2))
+        run(first, from: start.addingTimeInterval(1), to: start.addingTimeInterval(6))
+        #expect(first.phase == .finished)
+        #expect(first.score == 1)
 
-        let (second, _) = makeSession(store: store)
-        second.start(now: start.addingTimeInterval(100))
-        second.submit(second.fact.answer, now: start.addingTimeInterval(101))
+        // Second run, same config: two correct answers, then the clock expires.
+        let secondStart = start.addingTimeInterval(100)
+        let (second, _) = makeSession(length: .seconds(5), store: store)
+        second.start(now: secondStart)
+        second.submit(second.fact.answer, now: secondStart.addingTimeInterval(1))
         // Advance past the feedback hold to the next question before answering
         // again — two submits at the same instant would be one scoring answer
-        // plus one swallowed double-tap, leaving the second run tied with the
-        // first rather than beating it.
-        run(second, from: start.addingTimeInterval(101), to: start.addingTimeInterval(103))
-        second.submit(second.fact.answer, now: start.addingTimeInterval(104))
-        _ = second.endEarly(now: start.addingTimeInterval(120))
+        // plus one swallowed double-tap.
+        run(second, from: secondStart.addingTimeInterval(1), to: secondStart.addingTimeInterval(3))
+        second.submit(second.fact.answer, now: secondStart.addingTimeInterval(3.5))
+        run(second, from: secondStart.addingTimeInterval(3.5), to: secondStart.addingTimeInterval(6))
 
         let summary = try! #require(second.summary)
+        #expect(second.phase == .finished)
         #expect(second.score == 2)
         #expect(summary.board.previousBest == 1)
         #expect(summary.board.isNewBest)
