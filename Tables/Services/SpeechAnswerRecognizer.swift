@@ -14,7 +14,10 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     var onNumber: ((Int) -> Void)?
 
     /// Whether this device can offer voice mode at all (shown-in-setup gate).
-    static var isSupported: Bool {
+    /// `nonisolated` so it can be used as a default-argument expression (default
+    /// arguments in this project's Swift 5 language mode can't reference
+    /// actor-isolated members) — the check itself touches no isolated state.
+    nonisolated static var isSupported: Bool {
         guard let recognizer = SFSpeechRecognizer() else { return false }
         return recognizer.supportsOnDeviceRecognition
     }
