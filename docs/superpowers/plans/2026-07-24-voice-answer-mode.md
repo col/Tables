@@ -535,6 +535,13 @@ final class VoiceAnswerController {
         }
     }
 
+    /// Release the recogniser when the view goes away or the child opts out of
+    /// voice — no phase change fires on view teardown, so the mic would
+    /// otherwise keep running.
+    func stopListening() {
+        stop()
+    }
+
     private func handle(_ number: Int) {
         guard session.phase == .asking else { return }
         display = .heard(number)
@@ -708,6 +715,15 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         task?.cancel()
         request = nil
         task = nil
+
+        // Hand the shared audio session back so voice cleans up after itself:
+        // restore the app's default `.ambient` (stop ducking others / holding
+        // the record indicator) and deactivate. The next `start()` re-asserts
+        // `.playAndRecord`, and FeedbackPlayer reactivates for its next tone —
+        // so we don't rely on an unrelated component to undo our category.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.ambient, mode: .default)
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func fire(_ number: Int) {
@@ -910,10 +926,12 @@ struct VoiceInputView: View {
     let session: GameSession
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var controller: VoiceAnswerController?
     @State private var recognizer = SpeechAnswerRecognizer()
     @State private var permissionDenied = false
+    @State private var fellBackToKeypad = false
 
     private var isWrong: Bool {
         switch session.phase {
@@ -929,18 +947,35 @@ struct VoiceInputView: View {
     }
 
     var body: some View {
-        VStack(spacing: Metrics.space3 + 2) {
-            if permissionDenied {
+        Group {
+            if fellBackToKeypad {
+                // Permission was denied and the child chose to type instead.
+                NumberPadView(session: session)
+            } else if permissionDenied {
                 deniedNotice
             } else {
-                heardDisplay
-                micIndicator
+                VStack(spacing: Metrics.space3 + 2) {
+                    heardDisplay
+                    micIndicator
+                }
             }
         }
         .onAppear(perform: startIfNeeded)
         .onChange(of: session.phase) { _, _ in
+            // Don't drive the recogniser once the child has left voice behind.
+            guard !permissionDenied, !fellBackToKeypad else { return }
             controller?.syncToPhase()
         }
+        // Backgrounding doesn't change `session.phase`, so returning to the
+        // foreground would otherwise leave the mic stopped on an .asking
+        // question. Re-sync on activation to resume listening.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !permissionDenied, !fellBackToKeypad else { return }
+            controller?.syncToPhase()
+        }
+        // No phase change fires when the game is abandoned mid-question, so
+        // release the mic/engine explicitly as the view goes away.
+        .onDisappear { controller?.stopListening() }
     }
 
     private func startIfNeeded() {
@@ -963,8 +998,14 @@ struct VoiceInputView: View {
     // MARK: Listening UI
 
     private var displayText: String {
-        guard let controller else { return " " }
-        if case .heard(let n) = controller.display { return String(n) }
+        // Once answered, show the submitted number through the whole feedback
+        // hold (it survives on the session as `pickedValue`), the same way the
+        // number pad keeps the entered value on screen. `.heard` only shows in
+        // the instant between recognition and submit.
+        if session.phase != .asking, let picked = session.pickedValue {
+            return String(picked)
+        }
+        if case .heard(let n) = controller?.display { return String(n) }
         return " "
     }
 
@@ -1031,19 +1072,16 @@ struct VoiceInputView: View {
                     }
                 }
                 Button("Use keypad") {
-                    permissionDenied = false
+                    // Abandon voice for this game: stop the mic and switch the
+                    // whole view to the number pad (handled in `body`).
+                    controller?.stopListening()
                     fellBackToKeypad = true
                 }
             }
             .font(Typography.ui(14, weight: .semibold, relativeTo: .subheadline))
-            if fellBackToKeypad {
-                NumberPadView(session: session)
-            }
         }
         .padding(.vertical, Metrics.space4)
     }
-
-    @State private var fellBackToKeypad = false
 }
 ```
 
