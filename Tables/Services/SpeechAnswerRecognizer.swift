@@ -136,38 +136,40 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
             Task { @MainActor in
                 // Ignore a callback from a task that a later start() superseded.
                 guard generation == self.generation else { return }
-                if let result {
-                    let number = SpokenNumberParser.parse(result.bestTranscription.formattedString)
-                    if result.isFinal {
-                        // The transcript is settled: submit the number now, or —
-                        // if nothing parseable was heard (a run of silence) —
-                        // restart so the question keeps listening rather than
-                        // going deaf.
-                        self.cancelSettle()
-                        if let number {
-                            self.fire(number)
-                        } else {
-                            self.restartListening()
-                        }
-                    } else if let number, !self.isExtendable(number) {
-                        // A number that can't grow by saying more ("forty two",
-                        // "seven") — submit immediately.
-                        self.cancelSettle()
+                // Errors (including audio-session interruptions) end the task.
+                // Checked first, before any result handling, so a result+error
+                // callback can't reach the restart path: interruptions are
+                // recovered by the interruption observer; other errors just
+                // stop. We deliberately do NOT auto-restart on error, to avoid
+                // a tight failure loop.
+                if error != nil {
+                    self.stop()
+                    return
+                }
+                guard let result else { return }
+                let number = SpokenNumberParser.parse(result.bestTranscription.formattedString)
+                if result.isFinal {
+                    // The transcript is settled: submit the number now, or — if
+                    // nothing parseable was heard (a run of silence) — restart so
+                    // the question keeps listening rather than going deaf.
+                    self.cancelSettle()
+                    if let number {
                         self.fire(number)
                     } else {
-                        // Either an extendable number ("twenty", which may still
-                        // become "twenty one") or any partial while one is
-                        // pending: hold it and wait for the stream to go quiet,
-                        // so a compound number isn't clipped to its prefix.
-                        if let number { self.pendingNumber = number }
-                        if self.pendingNumber != nil { self.armSettleTimer() }
+                        self.restartListening()
                     }
-                } else if error != nil {
-                    // Errors (including audio-session interruptions) end the
-                    // task. Interruptions are recovered by the interruption
-                    // observer; other errors just stop. We deliberately do NOT
-                    // auto-restart on error, to avoid a tight failure loop.
-                    self.stop()
+                } else if let number, !self.isExtendable(number) {
+                    // A number that can't grow by saying more ("forty two",
+                    // "seven") — submit immediately.
+                    self.cancelSettle()
+                    self.fire(number)
+                } else {
+                    // Either an extendable number ("twenty", which may still
+                    // become "twenty one") or any partial while one is pending:
+                    // hold it and wait for the stream to go quiet, so a compound
+                    // number isn't clipped to its prefix.
+                    if let number { self.pendingNumber = number }
+                    if self.pendingNumber != nil { self.armSettleTimer() }
                 }
             }
         }
