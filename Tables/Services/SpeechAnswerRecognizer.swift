@@ -145,12 +145,15 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     }
 
     func stop() {
-        guard isRunning else { return }
-        isRunning = false
         // Any stop cancels a pending interruption-resume: if the question has
         // moved on (phase change, an answer) before an interruption's `.ended`
-        // arrives, we must not later restart listening on a stale intent.
+        // arrives, we must not later restart on a stale intent. Cleared BEFORE
+        // the `isRunning` guard, because during an interruption window the
+        // recogniser is already stopped (`.began` stopped it), so a phase-change
+        // stop() arrives with `isRunning == false` and must still clear the flag.
         wasListeningBeforeInterruption = false
+        guard isRunning else { return }
+        isRunning = false
 
         engine.inputNode.removeTap(onBus: 0)
         if engine.isRunning { engine.stop() }
