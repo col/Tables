@@ -610,7 +610,12 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     var onNumber: ((Int) -> Void)?
 
     /// Whether this device can offer voice mode at all (shown-in-setup gate).
-    static var isSupported: Bool {
+    ///
+    /// `nonisolated`: it touches no actor-isolated state, and being nonisolated
+    /// lets it serve as the default value for `SetupModel.init`'s
+    /// `isVoiceSupported` parameter (SE-0411 forbids a MainActor-isolated
+    /// default-value expression under Swift 5 mode).
+    nonisolated static var isSupported: Bool {
         guard let recognizer = SFSpeechRecognizer() else { return false }
         return recognizer.supportsOnDeviceRecognition
     }
@@ -621,6 +626,12 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     private var task: SFSpeechRecognitionTask?
     private var isRunning = false
     private var didFire = false
+    /// Bumped on every `start()`. A recognition task's completion handler can
+    /// still fire after `cancel()` (cancellation is not synchronous), so each
+    /// callback captures the generation it was started under and ignores itself
+    /// if a later `start()` has since superseded it — otherwise a stale task
+    /// from the previous question could kill or answer the current one.
+    private var generation = 0
 
     func requestAuthorization(_ completion: @escaping (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { speechStatus in
@@ -638,9 +649,14 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         guard !isRunning, let recognizer, recognizer.isAvailable else { return }
         isRunning = true
         didFire = false
+        generation += 1
+        let generation = self.generation
 
         // Re-assert the record category on every start so it wins over
         // FeedbackPlayer's `.ambient`. `.duckOthers` lets our tones through.
+        // `try?`: on the rare failure (session held exclusively elsewhere) we
+        // let `engine.start()` below throw and drive cleanup, rather than
+        // aborting before the engine is even attempted.
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
         try? session.setActive(true, options: .notifyOthersOnDeactivation)
@@ -666,11 +682,18 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             Task { @MainActor in
+                // Ignore a callback from a task that a later start() superseded.
+                guard generation == self.generation else { return }
                 if let result, let number = SpokenNumberParser.parse(result.bestTranscription.formattedString) {
                     self.fire(number)
                 } else if error != nil {
                     self.stop()
                 }
+                // Note: a clean final result with no parseable number leaves the
+                // engine running (still listening) until the controller calls
+                // stop() on a phase change. Verify on-device (Task 8) that an
+                // on-device task ending mid-question restarts listening as
+                // expected; adjust here if real behaviour differs.
             }
         }
     }
