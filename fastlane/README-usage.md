@@ -7,7 +7,8 @@
 2. Put the file at `fastlane/AuthKey_<KEYID>.p8`.
 3. `cp fastlane/.env.example fastlane/.env` and fill in `ASC_KEY_ID`
    (the key's ID) and `ASC_ISSUER_ID` (shown above the keys list).
-4. Edit `fastlane/metadata/en-US/description.txt` and the three `*_url.txt`
+4. Fill in the listing text for the launch locale under
+   `fastlane/metadata/en-AU/` — `description.txt` and the three `*_url.txt`
    files with real values (no example.com — Apple rejects those).
 5. Accept any pending agreements in App Store Connect (free-app agreement).
 6. Make sure the app record for `com.challengr.Tables` already exists in
@@ -15,6 +16,11 @@
    create it — the first `fastlane beta` fails at `latest_testflight_build_number`
    if the app hasn't been registered (register it in the App Store Connect UI,
    or once with `bundle exec fastlane produce`).
+7. Limit availability to Australia for the initial release: App Store Connect
+   > your app > Pricing and Availability > Availability > select Australia only.
+   This is a per-app setting that persists across uploads (`deliver` does not
+   manage it, so it stays a one-time manual step). Set the app's Primary
+   Language to English (Australia) so the `en-AU` listing is the default.
 
 ## Commands
 - `bundle exec fastlane screenshots` — regenerate App Store screenshots.
@@ -28,3 +34,8 @@
 - Secrets (`.p8`, `.env`) are gitignored — never commit them.
 - To change screenshot devices, edit `fastlane/Snapfile` (names must match
   `xcrun simctl list devicetypes`).
+- Listing text lives per locale under `fastlane/metadata/<locale>/`. `en-AU`
+  is the live Australian listing (display name "Tables"); `en-US` is a draft
+  for a future U.S. launch under a different display name. `deliver` uploads
+  every locale folder present, so finalise the `en-US` name before enabling
+  U.S. availability — "Tables" is trademark-contested in the U.S.
