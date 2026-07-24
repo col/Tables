@@ -126,6 +126,9 @@ struct GameView: View {
                     MultipleChoiceView(session: session)
                 case .numberPad:
                     NumberPadView(session: session)
+                case .voice:
+                    // TODO(Task 7): replace with VoiceInputView(session: session)
+                    NumberPadView(session: session)
                 }
             }
             .opacity(session.isFadingOut ? 0 : 1)
