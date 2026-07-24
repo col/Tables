@@ -23,7 +23,29 @@ platform :ios do
 
   desc "Build and upload a new build to TestFlight"
   lane :beta do
-    UI.message("beta lane wired in Task 4")
+    key = asc_key
+
+    # Next build number = highest on TestFlight + 1 (start at 1 if none yet).
+    latest = latest_testflight_build_number(
+      api_key: key,
+      app_identifier: "com.challengr.Tables",
+      initial_build_number: 0
+    )
+    next_build = latest + 1
+    UI.message("Building TestFlight build number #{next_build}")
+
+    build_app(
+      scheme: "Tables",
+      export_method: "app-store",
+      xcargs: "CURRENT_PROJECT_VERSION=#{next_build} -allowProvisioningUpdates",
+      output_directory: "build",
+      clean: true
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      skip_waiting_for_build_processing: true
+    )
   end
 
   desc "Build and upload binary + metadata + screenshots to App Store Connect (draft, not submitted)"
