@@ -12,6 +12,7 @@ struct VoiceInputView: View {
     @State private var controller: VoiceAnswerController?
     @State private var recognizer = SpeechAnswerRecognizer()
     @State private var permissionDenied = false
+    @State private var fellBackToKeypad = false
 
     private var isWrong: Bool {
         switch session.phase {
@@ -27,18 +28,26 @@ struct VoiceInputView: View {
     }
 
     var body: some View {
-        VStack(spacing: Metrics.space3 + 2) {
-            if permissionDenied {
+        Group {
+            if fellBackToKeypad {
+                // Permission was denied and the child chose to type instead.
+                NumberPadView(session: session)
+            } else if permissionDenied {
                 deniedNotice
             } else {
-                heardDisplay
-                micIndicator
+                VStack(spacing: Metrics.space3 + 2) {
+                    heardDisplay
+                    micIndicator
+                }
             }
         }
         .onAppear(perform: startIfNeeded)
         .onChange(of: session.phase) { _, _ in
             controller?.syncToPhase()
         }
+        // No phase change fires when the game is abandoned mid-question, so
+        // release the mic/engine explicitly as the view goes away.
+        .onDisappear { controller?.stopListening() }
     }
 
     private func startIfNeeded() {
@@ -61,8 +70,14 @@ struct VoiceInputView: View {
     // MARK: Listening UI
 
     private var displayText: String {
-        guard let controller else { return " " }
-        if case .heard(let n) = controller.display { return String(n) }
+        // Once answered, show the submitted number through the whole feedback
+        // hold (it survives on the session as `pickedValue`), the same way the
+        // number pad keeps the entered value on screen. `.heard` only shows in
+        // the instant between recognition and submit.
+        if session.phase != .asking, let picked = session.pickedValue {
+            return String(picked)
+        }
+        if case .heard(let n) = controller?.display { return String(n) }
         return " "
     }
 
@@ -129,17 +144,14 @@ struct VoiceInputView: View {
                     }
                 }
                 Button("Use keypad") {
-                    permissionDenied = false
+                    // Abandon voice for this game: stop the mic and switch the
+                    // whole view to the number pad (handled in `body`).
+                    controller?.stopListening()
                     fellBackToKeypad = true
                 }
             }
             .font(Typography.ui(14, weight: .semibold, relativeTo: .subheadline))
-            if fellBackToKeypad {
-                NumberPadView(session: session)
-            }
         }
         .padding(.vertical, Metrics.space4)
     }
-
-    @State private var fellBackToKeypad = false
 }

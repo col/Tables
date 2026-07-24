@@ -48,6 +48,13 @@ final class VoiceAnswerController {
         }
     }
 
+    /// Release the recogniser when the view goes away or the child opts out of
+    /// voice — no phase change fires on view teardown, so the mic would
+    /// otherwise keep running.
+    func stopListening() {
+        stop()
+    }
+
     private func handle(_ number: Int) {
         guard session.phase == .asking else { return }
         display = .heard(number)
