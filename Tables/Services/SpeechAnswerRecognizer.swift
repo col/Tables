@@ -147,6 +147,10 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        // Any stop cancels a pending interruption-resume: if the question has
+        // moved on (phase change, an answer) before an interruption's `.ended`
+        // arrives, we must not later restart listening on a stale intent.
+        wasListeningBeforeInterruption = false
 
         engine.inputNode.removeTap(onBus: 0)
         if engine.isRunning { engine.stop() }
@@ -176,15 +180,17 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     private func handleInterruption(type: AVAudioSession.InterruptionType?, shouldResume: Bool) {
         switch type {
         case .began:
-            // The system has already suspended our audio; tear down cleanly and
-            // remember whether we should pick back up when it ends.
-            wasListeningBeforeInterruption = isRunning
+            // The system has already suspended our audio. Capture the intent
+            // *before* stop() clears it, then restore it so `.ended` knows to
+            // resume — but a later non-interruption stop() (phase change, an
+            // answer) will clear it again and correctly cancel the resume.
+            let wasListening = isRunning
             stop()
+            wasListeningBeforeInterruption = wasListening
         case .ended:
-            if wasListeningBeforeInterruption, shouldResume {
-                wasListeningBeforeInterruption = false
-                start()
-            }
+            let shouldRestart = wasListeningBeforeInterruption && shouldResume
+            wasListeningBeforeInterruption = false
+            if shouldRestart { start() }
         default:
             break
         }
