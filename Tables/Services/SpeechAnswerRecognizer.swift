@@ -8,6 +8,14 @@ import AVFoundation
 /// `start()` opens a fresh recognition request; the first partial transcript
 /// that `SpokenNumberParser` resolves to a valid number fires `onNumber` once
 /// and then the recogniser stops itself.
+///
+/// Robustness note: several things can end a recognition task *without* a
+/// number while the question is still being asked — a run of silence
+/// (finalises the task), or an audio-session interruption (a call, Siri, an
+/// alarm). Both are recovered here so an always-listening question never
+/// silently goes deaf: a clean finalise restarts the task, and an interruption
+/// is picked back up when it ends. These recovery paths depend on how the real
+/// on-device recogniser behaves and should be confirmed on-device (Task 8).
 @MainActor
 final class SpeechAnswerRecognizer: AnswerRecognizing {
 
@@ -35,6 +43,37 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
     /// from the previous question could kill or answer the current one.
     private var generation = 0
 
+    /// Set on an interruption's `.began` so we know whether to resume on `.ended`.
+    private var wasListeningBeforeInterruption = false
+    private var interruptionObserver: NSObjectProtocol?
+
+    deinit {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+    }
+
+    /// Registered lazily on first `start()` rather than in `init` (capturing
+    /// `self` in an escaping closure during `init` is a Swift 6 concurrency
+    /// error). The Sendable primitives are extracted on the delivery queue and
+    /// then hopped to the main actor, so the non-Sendable Notification never
+    /// crosses the boundary.
+    private func registerInterruptionObserverIfNeeded() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            let info = note.userInfo
+            let type = (info?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init(rawValue:))
+            let shouldResume = (info?[AVAudioSessionInterruptionOptionKey] as? UInt)
+                .map { AVAudioSession.InterruptionOptions(rawValue: $0).contains(.shouldResume) } ?? false
+            Task { @MainActor [weak self] in self?.handleInterruption(type: type, shouldResume: shouldResume) }
+        }
+    }
+
     func requestAuthorization(_ completion: @escaping (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { speechStatus in
             guard speechStatus == .authorized else {
@@ -49,6 +88,7 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
 
     func start() {
         guard !isRunning, let recognizer, recognizer.isAvailable else { return }
+        registerInterruptionObserverIfNeeded()
         isRunning = true
         didFire = false
         generation += 1
@@ -89,13 +129,17 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
                 if let result, let number = SpokenNumberParser.parse(result.bestTranscription.formattedString) {
                     self.fire(number)
                 } else if error != nil {
+                    // Errors (including audio-session interruptions) end the
+                    // task. Interruptions are recovered by the interruption
+                    // observer; other errors just stop. We deliberately do NOT
+                    // auto-restart on error, to avoid a tight failure loop.
                     self.stop()
+                } else if result?.isFinal == true {
+                    // The task finalised (e.g. after a run of silence) without a
+                    // parseable number, but the question is still being asked —
+                    // restart so voice keeps listening rather than going deaf.
+                    self.restartListening()
                 }
-                // Note: a clean final result with no parseable number leaves the
-                // engine running (still listening) until the controller calls
-                // stop() on a phase change. Verify on-device (Task 8) that an
-                // on-device task ending mid-question restarts listening as
-                // expected; adjust here if real behaviour differs.
             }
         }
     }
@@ -119,6 +163,31 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.ambient, mode: .default)
         try? session.setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Tear the current task down and immediately open a fresh one. Used when a
+    /// task finalises with no answer but the question is still live.
+    private func restartListening() {
+        guard isRunning else { return }
+        stop()
+        start()
+    }
+
+    private func handleInterruption(type: AVAudioSession.InterruptionType?, shouldResume: Bool) {
+        switch type {
+        case .began:
+            // The system has already suspended our audio; tear down cleanly and
+            // remember whether we should pick back up when it ends.
+            wasListeningBeforeInterruption = isRunning
+            stop()
+        case .ended:
+            if wasListeningBeforeInterruption, shouldResume {
+                wasListeningBeforeInterruption = false
+                start()
+            }
+        default:
+            break
+        }
     }
 
     private func fire(_ number: Int) {
