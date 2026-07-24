@@ -2,6 +2,7 @@ Tables.xcodeproj/xcuserdata/col.xcuserdatad
 .superpowers/
 
 # Fastlane
+fastlane/README.md
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
