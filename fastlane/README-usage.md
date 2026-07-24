@@ -29,6 +29,22 @@
   screenshots to App Store Connect as a draft. Then open App Store Connect
   and click **Submit for Review** yourself.
 
+## First release gotcha (App Review Information)
+On the very first `release`, `deliver` crashes with `[!] No data` in
+`fetch_app_store_review_detail`. This is a known fastlane bug
+(fastlane/fastlane#20538): the version has no App Review Information record yet,
+so the fetch returns empty. Fix once, then it never recurs:
+1. App Store Connect > Tables > the 1.0 version > App Review Information.
+2. Tick "Sign-In not required" (the app has no login) and fill in the contact
+   details (name, phone, email).
+3. Save, then re-run `bundle exec fastlane release`.
+
+To get the build up first without waiting on metadata, upload binary-only (this
+path never touches review info):
+`bundle exec fastlane release` after temporarily adding `skip_metadata: true,
+skip_screenshots: true` to the lane — or just use `bundle exec fastlane beta`
+(TestFlight), which doesn't hit `deliver` at all.
+
 ## Notes
 - Signing is Xcode Automatic; `gym` passes `-allowProvisioningUpdates`.
 - Secrets (`.p8`, `.env`) are gitignored — never commit them.
