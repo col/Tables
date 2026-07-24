@@ -110,6 +110,15 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
         task?.cancel()
         request = nil
         task = nil
+
+        // Hand the shared audio session back so voice cleans up after itself:
+        // restore the app's default `.ambient` (stop ducking others / holding
+        // the record indicator) and deactivate. The next `start()` re-asserts
+        // `.playAndRecord`, and FeedbackPlayer reactivates for its next tone —
+        // so we don't rely on an unrelated component to undo our category.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.ambient, mode: .default)
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func fire(_ number: Int) {

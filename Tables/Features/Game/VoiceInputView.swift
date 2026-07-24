@@ -8,6 +8,7 @@ struct VoiceInputView: View {
     let session: GameSession
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var controller: VoiceAnswerController?
     @State private var recognizer = SpeechAnswerRecognizer()
@@ -43,6 +44,15 @@ struct VoiceInputView: View {
         }
         .onAppear(perform: startIfNeeded)
         .onChange(of: session.phase) { _, _ in
+            // Don't drive the recogniser once the child has left voice behind.
+            guard !permissionDenied, !fellBackToKeypad else { return }
+            controller?.syncToPhase()
+        }
+        // Backgrounding doesn't change `session.phase`, so returning to the
+        // foreground would otherwise leave the mic stopped on an .asking
+        // question. Re-sync on activation to resume listening.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !permissionDenied, !fellBackToKeypad else { return }
             controller?.syncToPhase()
         }
         // No phase change fires when the game is abandoned mid-question, so
