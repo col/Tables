@@ -1,0 +1,33 @@
+default_platform(:ios)
+
+# Loads the App Store Connect API key from gitignored files. The .p8 is
+# located by ASC_KEY_ID; the two IDs come from fastlane/.env.
+def asc_key
+  key_id = ENV.fetch("ASC_KEY_ID") { UI.user_error!("Set ASC_KEY_ID in fastlane/.env (see .env.example)") }
+  issuer_id = ENV.fetch("ASC_ISSUER_ID") { UI.user_error!("Set ASC_ISSUER_ID in fastlane/.env (see .env.example)") }
+  key_path = File.expand_path("AuthKey_#{key_id}.p8", __dir__)
+  UI.user_error!("Missing #{key_path} — download it from App Store Connect") unless File.exist?(key_path)
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_filepath: key_path,
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc "Capture App Store screenshots on the simulator matrix"
+  lane :screenshots do
+    UI.message("screenshots lane wired in Task 3")
+  end
+
+  desc "Build and upload a new build to TestFlight"
+  lane :beta do
+    UI.message("beta lane wired in Task 4")
+  end
+
+  desc "Build and upload binary + metadata + screenshots to App Store Connect (draft, not submitted)"
+  lane :release do
+    UI.message("release lane wired in Task 5")
+  end
+end
