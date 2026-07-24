@@ -1,0 +1,10 @@
+Welcome to Tables — our first release.
+
+A calm, ad-free way for children to practise their times tables:
+• Countdown — a timed race to answer as many as they can
+• Revision — no timer, leaning toward the facts they find hardest
+• Answer with multiple choice or a clean built-in number pad
+• A mastery grid that tracks real progress, fact by fact
+• Completely private — no login, and nothing leaves the device
+
+Thanks for trying it. We hope your times tables practice feels a little calmer.

@@ -1,0 +1,73 @@
+default_platform(:ios)
+
+# Loads the App Store Connect API key from gitignored files. The .p8 is
+# located by ASC_KEY_ID; the two IDs come from fastlane/.env.
+def asc_key
+  key_id = ENV.fetch("ASC_KEY_ID") { UI.user_error!("Set ASC_KEY_ID in fastlane/.env (see .env.example)") }
+  issuer_id = ENV.fetch("ASC_ISSUER_ID") { UI.user_error!("Set ASC_ISSUER_ID in fastlane/.env (see .env.example)") }
+  key_path = File.expand_path("AuthKey_#{key_id}.p8", __dir__)
+  UI.user_error!("Missing #{key_path} — download it from App Store Connect") unless File.exist?(key_path)
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_filepath: key_path,
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc "Capture App Store screenshots on the simulator matrix"
+  lane :screenshots do
+    capture_screenshots
+  end
+
+  desc "Build and upload a new build to TestFlight"
+  lane :beta do
+    key = asc_key
+
+    # Next build number = highest on TestFlight + 1 (start at 1 if none yet).
+    latest = latest_testflight_build_number(
+      api_key: key,
+      app_identifier: "com.challengr.Tables",
+      initial_build_number: 0
+    )
+    next_build = latest + 1
+    UI.message("Building TestFlight build number #{next_build}")
+
+    build_app(
+      scheme: "Tables",
+      export_method: "app-store",
+      xcargs: "CURRENT_PROJECT_VERSION=#{next_build} -allowProvisioningUpdates",
+      output_directory: "build",
+      clean: true
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build and upload binary + metadata + screenshots to App Store Connect (draft, not submitted)"
+  lane :release do
+    key = asc_key
+
+    build_app(
+      scheme: "Tables",
+      export_method: "app-store",
+      xcargs: "-allowProvisioningUpdates",
+      output_directory: "build",
+      clean: true
+    )
+
+    upload_to_app_store(
+      api_key: key,
+      submit_for_review: false,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots"
+    )
+  end
+end

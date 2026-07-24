@@ -1,0 +1,7 @@
+# Upload-only: never auto-submit. The user clicks Submit in App Store Connect.
+submit_for_review(false)
+automatic_release(false)
+force(true)                 # skip the HTML preview confirmation prompt
+precheck_include_in_app_purchases(false)
+screenshots_path("./fastlane/screenshots")
+metadata_path("./fastlane/metadata")

@@ -1,2 +1,18 @@
 Tables.xcodeproj/xcuserdata/col.xcuserdatad
 .superpowers/
+
+# Fastlane
+fastlane/README.md
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/screenshots/screenshots.html
+fastlane/test_output/
+fastlane/.env
+fastlane/AuthKey_*.p8
+fastlane/*.p8
+
+# Build artefacts
+build/
+*.ipa
+*.app.dSYM.zip
