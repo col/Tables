@@ -50,6 +50,24 @@ platform :ios do
 
   desc "Build and upload binary + metadata + screenshots to App Store Connect (draft, not submitted)"
   lane :release do
-    UI.message("release lane wired in Task 5")
+    key = asc_key
+
+    build_app(
+      scheme: "Tables",
+      export_method: "app-store",
+      xcargs: "-allowProvisioningUpdates",
+      output_directory: "build",
+      clean: true
+    )
+
+    upload_to_app_store(
+      api_key: key,
+      submit_for_review: false,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots"
+    )
   end
 end
