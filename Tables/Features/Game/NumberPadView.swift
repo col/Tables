@@ -75,7 +75,7 @@ struct NumberPadView: View {
     private func keyButton(_ key: Key) -> some View {
         Button {
             switch key {
-            case .digit(let value): session.padAppend(value)
+            case .digit(let value): session.padAppend(value, now: Date())
             case .delete: session.padDelete()
             case .submit: session.padSubmit(now: Date())
             }

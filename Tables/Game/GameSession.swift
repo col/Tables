@@ -207,9 +207,15 @@ final class GameSession {
         phase = .asking
     }
 
-    func padAppend(_ digit: Int) {
+    func padAppend(_ digit: Int, now: Date) {
         guard phase == .asking, padValue.count < 3 else { return }
         padValue.append(String(digit))
+        // Auto-submit as soon as the entry is as long as the answer, so a child
+        // never has to reach for Enter on a well-formed answer. A shorter guess
+        // (fewer digits than the answer) still submits via the Enter key.
+        if padValue.count == fact.answerDigits {
+            padSubmit(now: now)
+        }
     }
 
     func padDelete() {

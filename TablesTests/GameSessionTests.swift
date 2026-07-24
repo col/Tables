@@ -341,23 +341,47 @@ struct GameSessionTests {
 
     // MARK: Number pad
 
-    @Test("the pad builds a value, deletes, and caps at three digits")
-    func padEditing() {
-        let (session, _) = makeSession(answerMode: .numberPad)
+    @Test("the pad appends and deletes, and Enter submits a short guess")
+    func padEntryAndEnter() {
+        // Every answer in the 12 times table has at least two digits, so a
+        // single keypress never reaches the auto-submit length.
+        let (session, _) = makeSession(answerMode: .numberPad, tables: [12])
         session.start(now: start)
 
-        session.padAppend(4)
-        session.padAppend(2)
-        #expect(session.padValue == "42")
+        session.padAppend(5, now: start.addingTimeInterval(0.1))
+        #expect(session.padValue == "5")
+        #expect(session.phase == .asking, "one digit auto-submitted a 2+ digit answer")
         #expect(session.canSubmitPad)
 
         session.padDelete()
-        #expect(session.padValue == "4")
+        #expect(session.padValue == "")
 
-        session.padAppend(1)
-        session.padAppend(2)
-        session.padAppend(3)
-        #expect(session.padValue == "412", "the pad should stop at three digits")
+        // A deliberately short (wrong) guess still submits via the Enter key.
+        session.padAppend(7, now: start.addingTimeInterval(0.2))
+        #expect(session.phase == .asking)
+        session.padSubmit(now: start.addingTimeInterval(0.3))
+        #expect(session.pickedValue == 7, "Enter did not submit the short guess")
+    }
+
+    @Test("the pad auto-submits once the entry matches the answer length")
+    func padAutoSubmitsAtAnswerLength() {
+        let (session, _) = makeSession(answerMode: .numberPad)
+        session.start(now: start)
+        let answer = session.fact.answer
+        let digits = Array(String(answer))
+        #expect(digits.count == session.fact.answerDigits)
+
+        var now = start
+        for (index, character) in digits.enumerated() {
+            now = now.addingTimeInterval(0.3)
+            session.padAppend(Int(String(character))!, now: now)
+            if index < digits.count - 1 {
+                #expect(session.phase == .asking, "submitted before the answer was complete")
+            }
+        }
+
+        #expect(session.pickedValue == answer, "a complete correct answer did not auto-submit")
+        #expect(session.score == 1)
     }
 
     @Test("submitting an empty pad does nothing")

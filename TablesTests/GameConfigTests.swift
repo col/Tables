@@ -124,6 +124,13 @@ struct FactRevealTests {
     func answerReveal() {
         #expect(Fact(a: 7, b: 8).answerReveal == "= 56")
     }
+
+    @Test("answerDigits counts the digits in the answer")
+    func answerDigits() {
+        #expect(Fact(a: 2, b: 3).answerDigits == 1)   // 6
+        #expect(Fact(a: 6, b: 7).answerDigits == 2)   // 42
+        #expect(Fact(a: 12, b: 12).answerDigits == 3) // 144
+    }
 }
 
 struct EnumDisplayStringTests {

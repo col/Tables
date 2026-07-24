@@ -367,7 +367,10 @@ button — so nothing shifts when it appears.
 There is no bottom button; the back button in the header leaves the game.
 
 **Number pad:** keys 1–9, ⌫, 0, ↵ in a 3×4 grid. Entry capped at 3 digits.
-Submit is enabled only with a value entered.
+The entry **auto-submits** as soon as it is as long as the correct answer (1, 2
+or 3 digits from `Fact.answerDigits`), so a child never reaches for Enter on a
+well-formed answer. Enter remains for submitting a deliberately shorter (wrong)
+guess; it is enabled only with a value entered.
 
 ### Results
 Config eyebrow ("Countdown · 60 sec · ×3 ×6 ×7 ×8"), the score at display size,

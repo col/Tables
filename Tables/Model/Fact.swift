@@ -20,4 +20,8 @@ nonisolated struct Fact: Hashable, Sendable, Identifiable {
 
     /// The answer shown inline beside the question once revealed, e.g. "= 56".
     var answerReveal: String { "= \(answer)" }
+
+    /// How many digits the answer has — 1 to 3 across the 1–12 tables. The
+    /// number pad auto-submits once the entry reaches this length.
+    var answerDigits: Int { String(answer).count }
 }
