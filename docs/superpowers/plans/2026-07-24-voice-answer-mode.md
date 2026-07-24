@@ -20,13 +20,13 @@
 **Test command** (substitute an installed simulator name if `iPhone 16` isn't available — check with `xcrun simctl list devices available`):
 
 ```bash
-xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/<SuiteName>
+xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/<SuiteName>
 ```
 
 **Build-only command** (for tasks with no unit tests):
 
 ```bash
-xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ---
@@ -95,7 +95,7 @@ struct SpokenNumberParserTests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/SpokenNumberParserTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/SpokenNumberParserTests`
 Expected: FAIL — `SpokenNumberParser` is not defined.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -136,18 +136,28 @@ nonisolated enum SpokenNumberParser {
         let tokens = tokenize(transcript)
         guard !tokens.isEmpty else { return nil }
 
-        // 1. A bare integer anywhere in the phrase wins ("the answer is 42").
+        // 1. A bare integer in range anywhere in the phrase wins
+        //    ("the answer is 42" → 42). Out-of-range ints are skipped.
         for token in tokens {
             if let value = Int(token), inRange(value) { return value }
         }
 
-        // 2. Word-number phrase ("one hundred forty-four", "forty two").
-        if let value = wordValue(tokens), inRange(value) { return value }
+        // 2. Gather the number-words in order, dropping filler words
+        //    ("um forty two" → [40, 2]; "i think it's nine" → [9]).
+        let values = tokens.compactMap { words[$0] }
+        guard !values.isEmpty else { return nil }
 
-        // 3. Digit-sequence fallback: consecutive single digits, "four two"→42.
-        if let value = digitSequence(tokens), inRange(value) { return value }
+        // 2a. Two or more spoken single digits are a digit sequence, not a sum:
+        //     "four two" → "42", "eight eight" → "88".
+        if values.count >= 2, values.allSatisfy({ (0...9).contains($0) }) {
+            guard let value = Int(values.map(String.init).joined()) else { return nil }
+            return inRange(value) ? value : nil
+        }
 
-        return nil
+        // 2b. Standard number-word accumulation: "forty two" → 42,
+        //     "one hundred forty four" → 144, "two hundred" → 200 (rejected).
+        let value = accumulate(values)
+        return inRange(value) ? value : nil
     }
 
     private static func inRange(_ value: Int) -> Bool { value >= 1 && value <= maxAnswer }
@@ -161,14 +171,10 @@ nonisolated enum SpokenNumberParser {
     }
 
     /// Classic accumulate: units/tens add to a running part, "hundred" scales it.
-    /// Returns nil if any token isn't a known number word.
-    private static func wordValue(_ tokens: [String]) -> Int? {
+    private static func accumulate(_ values: [Int]) -> Int {
         var total = 0
         var current = 0
-        var sawWord = false
-        for token in tokens {
-            guard let value = words[token] else { return nil }
-            sawWord = true
+        for value in values {
             if value == 100 {
                 current = max(current, 1) * 100
             } else {
@@ -179,27 +185,14 @@ nonisolated enum SpokenNumberParser {
                 current = 0
             }
         }
-        guard sawWord else { return nil }
         return total + current
-    }
-
-    /// "four two" → 42. Every token must be a single digit 0–9.
-    private static func digitSequence(_ tokens: [String]) -> Int? {
-        var digits = ""
-        for token in tokens {
-            let value: Int
-            if let d = Int(token) { value = d } else if let w = words[token] { value = w } else { return nil }
-            guard (0...9).contains(value) else { return nil }
-            digits.append(String(value))
-        }
-        return Int(digits)
     }
 }
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/SpokenNumberParserTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/SpokenNumberParserTests`
 Expected: PASS (all cases).
 
 - [ ] **Step 5: Commit**
@@ -240,7 +233,7 @@ struct AnswerModeTests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/AnswerModeTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/AnswerModeTests`
 Expected: FAIL — `voice` is not a member of `AnswerMode`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -271,15 +264,33 @@ nonisolated enum AnswerMode: String, CaseIterable, Codable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Add a temporary `.voice` arm to `GameView` so the app still compiles**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/AnswerModeTests`
-Expected: PASS. (Note: `GameView`'s `switch config.answerMode` is now non-exhaustive and will fail to build — that is fixed in Task 7. This task's suite still compiles and runs because the test target builds the model, but if a full build is attempted it will error until Task 7. Run only this suite here.)
+Adding `.voice` makes `GameView`'s `switch config.answerMode` non-exhaustive. Because every `TablesTests` suite does `@testable import Tables`, the app target must compile for *any* test to run — so this can't be deferred. Add a temporary arm routing to the number pad (Task 7 replaces it with `VoiceInputView`).
 
-- [ ] **Step 5: Commit**
+In `Tables/Features/Game/GameView.swift`, in the `switch config.answerMode` block (~line 124):
+
+```swift
+                switch config.answerMode {
+                case .multipleChoice:
+                    MultipleChoiceView(session: session)
+                case .numberPad:
+                    NumberPadView(session: session)
+                case .voice:
+                    // TODO(Task 7): replace with VoiceInputView(session: session)
+                    NumberPadView(session: session)
+                }
+```
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/AnswerModeTests`
+Expected: PASS (app now compiles; the AnswerMode suite runs green).
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add Tables/Model/AnswerMode.swift TablesTests/AnswerModeTests.swift
+git add Tables/Model/AnswerMode.swift TablesTests/AnswerModeTests.swift Tables/Features/Game/GameView.swift
 git commit -m "Add voice case to AnswerMode"
 ```
 
@@ -365,7 +376,7 @@ final class FakeAnswerRecognizer: AnswerRecognizing {
 
 - [ ] **Step 3: Verify it builds**
 
-Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'`
 Expected: BUILD SUCCEEDED (this task adds no non-exhaustive switch; Task 2's `GameView` gap is still open, so if Task 2 is already applied this build fails until Task 7 — in that case skip this build check and rely on Task 4's suite run).
 
 - [ ] **Step 4: Commit**
@@ -468,7 +479,7 @@ struct VoiceAnswerControllerTests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/VoiceAnswerControllerTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/VoiceAnswerControllerTests`
 Expected: FAIL — `VoiceAnswerController` is not defined.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -541,7 +552,7 @@ final class VoiceAnswerController {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/VoiceAnswerControllerTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/VoiceAnswerControllerTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -687,7 +698,7 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
 
 - [ ] **Step 3: Verify it builds**
 
-Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'`
 Expected: BUILD SUCCEEDED. (`GameView`'s switch is still non-exhaustive until Task 7 — if that task isn't done yet, this build fails on `GameView.swift` only. That's expected; proceed to Task 6/7 and rely on the Task 7 build.)
 
 - [ ] **Step 4: Commit**
@@ -749,7 +760,7 @@ Note: these tests write to `defaults` directly, so they rely on `persists == tru
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/SetupModelTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/SetupModelTests`
 Expected: FAIL — `init(mode:defaults:isVoiceSupported:)` and `availableAnswerModes` don't exist.
 
 - [ ] **Step 3: Implement gating in `SetupModel`**
@@ -814,7 +825,7 @@ Delete the now-unused `voiceRow` computed property (the whole `private var voice
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:TablesTests/SetupModelTests`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests/SetupModelTests`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -838,9 +849,9 @@ git commit -m "Gate voice answer mode on device support in setup"
 
 This view drives real hardware; it is verified by **building** and by the manual device checklist in Task 8, not unit tests.
 
-- [ ] **Step 1: Add the `.voice` branch in `GameView`**
+- [ ] **Step 1: Point the `.voice` branch at the real view in `GameView`**
 
-In `Tables/Features/Game/GameView.swift`, extend the switch (this resolves the non-exhaustive-switch build break from Task 2):
+Task 2 added a temporary `.voice` arm routing to `NumberPadView` (with a `TODO(Task 7)` comment). Replace that arm's body with the real view:
 
 ```swift
                 switch config.answerMode {
@@ -1015,12 +1026,12 @@ struct VoiceInputView: View {
 
 - [ ] **Step 3: Verify the whole app builds**
 
-Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'`
 Expected: BUILD SUCCEEDED (switch is now exhaustive; view compiles).
 
 - [ ] **Step 4: Run the full test suite**
 
-Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'`
 Expected: all suites PASS.
 
 - [ ] **Step 5: Commit**
@@ -1050,4 +1061,4 @@ On-device speech, mic capture, and permission dialogs can't be unit-tested. On a
 ## Notes for the implementer
 
 - `GameSession` is intentionally untouched. If you feel the need to add a voice-specific method to it, stop — the seam is `submit(_:now:)`, already used by the number pad.
-- Tasks 2–5 individually leave the app in a non-building state (a non-exhaustive `switch` in `GameView`) until Task 7 closes it. Between those tasks, verify with the **named test suite** for that task rather than a full build. Task 7 restores a clean full build + full test run. If you prefer a always-green sequence, apply Task 7's Step 1 (the `.voice` switch arm, temporarily pointing at `NumberPadView(session:)`) right after Task 2, then swap in `VoiceInputView` in Task 7.
+- Because every `TablesTests` suite does `@testable import Tables`, the app target must compile for *any* test to run. Task 2 therefore adds a temporary `.voice` switch arm in `GameView` (routing to `NumberPadView`) so the app stays buildable from Task 2 onward; Task 7 swaps that arm's body to `VoiceInputView`. Every task from 2 on can run its named test suite against a compiling app target.
