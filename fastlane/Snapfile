@@ -1,0 +1,16 @@
+# Only run the screenshot class, not the full UITest suite.
+only_testing(["TablesUITests/ScreenshotUITests"])
+
+devices([
+  "iPhone 16 Pro Max",   # 6.9"
+  "iPhone 16 Plus",      # 6.7"
+  "iPad Pro 13-inch (M4)"
+])
+
+languages(["en-US"])
+
+scheme("Tables")
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+concurrent_simulators(true)
+stop_after_first_error(true)

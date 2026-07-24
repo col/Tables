@@ -18,7 +18,7 @@ end
 platform :ios do
   desc "Capture App Store screenshots on the simulator matrix"
   lane :screenshots do
-    UI.message("screenshots lane wired in Task 3")
+    capture_screenshots
   end
 
   desc "Build and upload a new build to TestFlight"
