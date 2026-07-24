@@ -59,7 +59,7 @@ final class GameSession {
 
     private static let praise = [
         "Nice!", "Correct!", "Well done!", "Great!", "Yes!",
-        "Spot on!", "Brilliant!", "Perfect!", "That's it!", "Lovely!"
+        "Spot on!", "Brilliant!", "Perfect!", "That's it!", "Nailed it!"
     ]
 
     let config: GameConfig

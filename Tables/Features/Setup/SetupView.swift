@@ -34,6 +34,7 @@ struct SetupView: View {
                     isEnabled: model.config.isStartable,
                     identifier: "setup.start"
                 ) {
+                    model.rememberSelections()
                     router.startGame(model.config)
                 }
                 .padding(.top, Metrics.space3 + 2)

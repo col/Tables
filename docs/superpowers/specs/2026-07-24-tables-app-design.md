@@ -351,6 +351,12 @@ defaulting to Tables:
 3. **Time limit** (Countdown: 30/60/90/120s) or **Length** (Revision:
    10/20/30/40/50/60/Endless) as pill chips.
 
+Selections are **remembered** in `UserDefaults` when a game starts and become
+the defaults next time. Tables and answer mode are shared across both modes;
+the length is stored per mode (a Countdown time and a Revision length are
+different kinds of choice). Nothing is preselected until the first game is
+played, so a brand-new install still opens with an empty table grid.
+
 Primary CTA "Start countdown" / "Start revision", disabled while no table is
 selected.
 
