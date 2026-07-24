@@ -34,8 +34,11 @@
 - Secrets (`.p8`, `.env`) are gitignored — never commit them.
 - To change screenshot devices, edit `fastlane/Snapfile` (names must match
   `xcrun simctl list devicetypes`).
-- Listing text lives per locale under `fastlane/metadata/<locale>/`. `en-AU`
-  is the live Australian listing (display name "Tables"); `en-US` is a draft
-  for a future U.S. launch under a different display name. `deliver` uploads
-  every locale folder present, so finalise the `en-US` name before enabling
-  U.S. availability — "Tables" is trademark-contested in the U.S.
+- Only `fastlane/metadata/en-AU/` is uploaded — the live Australian listing
+  (display name "Tables"). The U.S. "Zen Tables" draft is parked in
+  `fastlane/metadata-us-draft/en-US/` so `deliver` does not ship it yet. The
+  App Store shows a listing by the device's *language*, not its territory, so a
+  live `en-US` localization would appear to U.S.-English users in Australia too
+  — keep it held out until you launch in the U.S. To launch there later, move
+  that folder back under `fastlane/metadata/`, finalise the name, and add the
+  U.S. to Pricing and Availability.
