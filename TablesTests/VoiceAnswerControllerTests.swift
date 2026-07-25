@@ -56,8 +56,27 @@ struct VoiceAnswerControllerTests {
         #expect(controller.progress == VoiceProgress(heard: 20, status: status))
         #expect(fake.isListening)                    // NOT submitted yet
         #expect(controller.display == .listening)
-        let expected: Duration = status == .offTrack ? .milliseconds(400) : .milliseconds(1200)
+        let expected: Duration = status == .onTrack ? .milliseconds(1200) : .milliseconds(400)
         #expect(scheduler.lastDelay == expected)
+    }
+
+    @Test("a matching answer never waits the long on-track duration")
+    func matchUsesShortWait() {
+        let (controller, session, fake, scheduler) = make()
+        controller.syncToPhase()
+        let answer = session.fact.answer
+        fake.emitPartial(answer, isFinal: false)     // heard == answer -> .matches
+        if SpokenNumber.isExtendable(answer) {
+            // Extendable match (e.g. answer 30, heard "thirty"): short insurance
+            // wait, NOT the long on-track wait — we already have the answer.
+            #expect(scheduler.lastDelay == .milliseconds(400))
+            #expect(fake.isListening)                // waiting, not yet submitted
+            #expect(controller.progress == VoiceProgress(heard: answer, status: .matches))
+        } else {
+            // Terminal match (the common case): submits immediately, no wait.
+            #expect(controller.display == .heard(answer))
+            #expect(scheduler.lastDelay == nil)
+        }
     }
 
     @Test("firing the settle timer submits the pending number")

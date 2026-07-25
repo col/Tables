@@ -33,8 +33,13 @@ final class VoiceAnswerController {
     private var pendingNumber: Int?
     private var hasSubmitted = false
 
-    private static let onTrackWait: Duration = .milliseconds(1200)   // .matches + .onTrack
-    private static let offTrackWait: Duration = .milliseconds(400)
+    /// Long patience — only when the child is on track toward the answer but
+    /// hasn't said it yet, so give them time to finish it.
+    private static let onTrackWait: Duration = .milliseconds(1200)
+    /// Short insurance — a match (we already have the correct answer, but it
+    /// could still grow into a wrong one, e.g. "thirty" → "thirty two") or an
+    /// off-track number (already wrong, just capturing the whole of it).
+    private static let shortWait: Duration = .milliseconds(400)
 
     init(session: GameSession,
          recognizer: any AnswerRecognizing,
@@ -96,7 +101,9 @@ final class VoiceAnswerController {
         guard let pending = pendingNumber else { return }
         let status = SpokenNumber.track(heard: pending, answer: session.fact.answer)
         progress = VoiceProgress(heard: pending, status: status)
-        let wait = status == .offTrack ? Self.offTrackWait : Self.onTrackWait
+        // Only a genuinely on-track number earns the long wait; a match already
+        // has the right answer and just needs the short insurance window.
+        let wait = status == .onTrack ? Self.onTrackWait : Self.shortWait
         VoiceLog.log("heard \(pending) \(status) wait=\(wait)")
         scheduler.schedule(after: wait) { [weak self] in
             self?.settleFired()
