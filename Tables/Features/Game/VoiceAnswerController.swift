@@ -97,6 +97,7 @@ final class VoiceAnswerController {
         let status = SpokenNumber.track(heard: pending, answer: session.fact.answer)
         progress = VoiceProgress(heard: pending, status: status)
         let wait = status == .offTrack ? Self.offTrackWait : Self.onTrackWait
+        VoiceLog.log("heard \(pending) \(status) wait=\(wait)")
         scheduler.schedule(after: wait) { [weak self] in
             self?.settleFired()
         }
@@ -108,6 +109,7 @@ final class VoiceAnswerController {
     }
 
     private func submit(_ number: Int) {
+        VoiceLog.log("submit \(number)")
         hasSubmitted = true
         pendingNumber = nil
         progress = nil

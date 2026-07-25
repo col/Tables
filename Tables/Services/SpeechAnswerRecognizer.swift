@@ -136,6 +136,7 @@ final class SpeechAnswerRecognizer: AnswerRecognizing {
                 }
                 guard let result else { return }
                 let number = SpokenNumberParser.parse(result.bestTranscription.formattedString)
+                VoiceLog.log("partial \"\(result.bestTranscription.formattedString)\" -> \(number.map(String.init) ?? "—") final=\(result.isFinal)")
                 if result.isFinal {
                     // On a final transcript, hand up the number (if any). With no
                     // parseable number (a run of silence) keep listening rather
