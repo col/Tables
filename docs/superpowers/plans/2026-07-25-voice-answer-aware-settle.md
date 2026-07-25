@@ -801,7 +801,100 @@ git commit -m "Move answer-aware settle and progress event into VoiceAnswerContr
 
 ---
 
-### Task 4: Manual device verification
+### Task 4: Toggleable voice debug logging
+
+Add a tracer for hand-debugging the settle behaviour on device, and remove the
+stray `print(tokens)` currently in the working tree. Compiled out of release
+builds; in debug it is silent unless enabled (default reads the `-voiceDebug`
+launch argument, so it can be toggled from the Xcode scheme with no code change).
+
+**Files:**
+- Create: `Tables/Services/VoiceLog.swift`
+- Modify: `Tables/Services/SpeechAnswerRecognizer.swift` (one log line in the callback)
+- Modify: `Tables/Features/Game/VoiceAnswerController.swift` (two log lines)
+- Modify: `Tables/Model/SpokenNumberParser.swift` (remove the stray `print(tokens)`)
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `enum VoiceLog { static func log(_ message: @autoclosure () -> String) }` and (DEBUG-only) `static var isEnabled: Bool`.
+
+- [ ] **Step 1: Create the logger**
+
+`Tables/Services/VoiceLog.swift`:
+```swift
+import Foundation
+
+/// Lightweight, toggleable tracing for voice recognition — for hand-debugging
+/// on device. Compiled out entirely in release; in debug it is silent unless
+/// enabled. The default reads the `-voiceDebug` launch argument, so it can be
+/// switched on from the Xcode scheme without a code change (set
+/// `VoiceLog.isEnabled = true` to force it).
+///
+/// `nonisolated`: callable from the nonisolated parser and the @MainActor
+/// recogniser/controller alike.
+nonisolated enum VoiceLog {
+    #if DEBUG
+    nonisolated(unsafe) static var isEnabled =
+        ProcessInfo.processInfo.arguments.contains("-voiceDebug")
+    #endif
+
+    static func log(_ message: @autoclosure () -> String) {
+        #if DEBUG
+        guard isEnabled else { return }
+        print("[Voice] \(message())")
+        #endif
+    }
+}
+```
+
+- [ ] **Step 2: Trace raw partials in the recognizer**
+
+In `Tables/Services/SpeechAnswerRecognizer.swift`, in the recognition-task callback (the Task 3 version), immediately after the line
+```swift
+                let number = SpokenNumberParser.parse(result.bestTranscription.formattedString)
+```
+add:
+```swift
+                VoiceLog.log("partial \"\(result.bestTranscription.formattedString)\" -> \(number.map(String.init) ?? "—") final=\(result.isFinal)")
+```
+
+- [ ] **Step 3: Trace the controller's decisions**
+
+In `Tables/Features/Game/VoiceAnswerController.swift`:
+
+3a. In `considerPartial`, right after `progress = VoiceProgress(heard: pending, status: status)` and the `let wait = …` line, add (after `let wait`):
+```swift
+        VoiceLog.log("heard \(pending) \(status) wait=\(wait)")
+```
+
+3b. At the top of `submit(_ number:)` add:
+```swift
+        VoiceLog.log("submit \(number)")
+```
+
+- [ ] **Step 4: Remove the stray debug print**
+
+In `Tables/Model/SpokenNumberParser.swift`, delete the working-tree `print(tokens)` line (and the blank line added with it) inside `parse(_:)`, so the file matches its committed state apart from this task's other changes. (This resolves the uncommitted WIP edit.) Leave the working-tree `settleInterval` edit alone — Task 3 already removed that member entirely.
+
+- [ ] **Step 5: Build and run the full unit suite**
+
+Run: `xcodebuild build -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17'`
+Expected: BUILD SUCCEEDED, no new warnings.
+Run: `xcodebuild test -scheme Tables -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:TablesTests`
+Expected: all unit suites PASS (logging is side-effect-free to logic — the controller tests still pass unchanged).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add Tables/Services/VoiceLog.swift Tables/Services/SpeechAnswerRecognizer.swift Tables/Features/Game/VoiceAnswerController.swift Tables/Model/SpokenNumberParser.swift
+git commit -m "Add toggleable VoiceLog tracing for on-device voice debugging"
+```
+
+To use on device: edit the Tables scheme → Run → Arguments → add `-voiceDebug`, then watch the Xcode console for `[Voice] …` lines.
+
+---
+
+### Task 5: Manual device verification
 
 **Files:** none (verification only). No commit unless a fix is needed.
 
