@@ -29,21 +29,15 @@ final class VoiceAnswerController {
     private let recognizer: any AnswerRecognizing
     private let scheduler: any SettleScheduling
     private let now: () -> Date
+    private let speed: VoiceSpeed
 
     private var pendingNumber: Int?
     private var hasSubmitted = false
 
-    /// Long patience — only when the child is on track toward the answer but
-    /// hasn't said it yet, so give them time to finish it.
-    private static let onTrackWait: Duration = .milliseconds(1200)
-    /// Short insurance — a match (we already have the correct answer, but it
-    /// could still grow into a wrong one, e.g. "thirty" → "thirty two") or an
-    /// off-track number (already wrong, just capturing the whole of it).
-    private static let shortWait: Duration = .milliseconds(400)
-
     init(session: GameSession,
          recognizer: any AnswerRecognizing,
          scheduler: (any SettleScheduling)? = nil,
+         speed: VoiceSpeed = .normal,
          now: @escaping () -> Date = { Date() }) {
         self.session = session
         self.recognizer = recognizer
@@ -54,6 +48,7 @@ final class VoiceAnswerController {
         // Constructing it here in the init body is fine — `self` is already
         // on MainActor by the time this runs.
         self.scheduler = scheduler ?? TaskSettleScheduler()
+        self.speed = speed
         self.now = now
         self.recognizer.onPartial = { [weak self] number, isFinal in
             self?.considerPartial(number: number, isFinal: isFinal)
@@ -103,7 +98,7 @@ final class VoiceAnswerController {
         progress = VoiceProgress(heard: pending, status: status)
         // Only a genuinely on-track number earns the long wait; a match already
         // has the right answer and just needs the short insurance window.
-        let wait = status == .onTrack ? Self.onTrackWait : Self.shortWait
+        let wait = status == .onTrack ? speed.onTrackWait : speed.shortWait
         VoiceLog.log("heard \(pending) \(status) wait=\(wait)")
         scheduler.schedule(after: wait) { [weak self] in
             self?.settleFired()

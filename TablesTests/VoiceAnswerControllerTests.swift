@@ -7,7 +7,8 @@ struct VoiceAnswerControllerTests {
 
     private let start = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private func make() -> (VoiceAnswerController, GameSession, FakeAnswerRecognizer, ManualSettleScheduler) {
+    private func make(speed: VoiceSpeed = .normal)
+        -> (VoiceAnswerController, GameSession, FakeAnswerRecognizer, ManualSettleScheduler) {
         let config = GameConfig(mode: .countdown, tables: [3, 7], answerMode: .voice, length: .seconds(60))
         let session = GameSession(
             config: config,
@@ -20,7 +21,7 @@ struct VoiceAnswerControllerTests {
         let fake = FakeAnswerRecognizer()
         let scheduler = ManualSettleScheduler()
         let controller = VoiceAnswerController(
-            session: session, recognizer: fake, scheduler: scheduler, now: { self.start }
+            session: session, recognizer: fake, scheduler: scheduler, speed: speed, now: { self.start }
         )
         return (controller, session, fake, scheduler)
     }
@@ -56,7 +57,19 @@ struct VoiceAnswerControllerTests {
         #expect(controller.progress == VoiceProgress(heard: 20, status: status))
         #expect(fake.isListening)                    // NOT submitted yet
         #expect(controller.display == .listening)
-        let expected: Duration = status == .onTrack ? .milliseconds(1200) : .milliseconds(400)
+        let expected: Duration = status == .onTrack ? .milliseconds(800) : .milliseconds(400)
+        #expect(scheduler.lastDelay == expected)
+    }
+
+    @Test("the injected speed sets the settle durations")
+    func speedDrivesDurations() {
+        let (controller, session, fake, scheduler) = make(speed: .fastest)
+        controller.syncToPhase()
+        let answer = session.fact.answer
+        fake.emitPartial(20, isFinal: false)             // extendable, not a ×3/×7 answer
+        let status = SpokenNumber.track(heard: 20, answer: answer)
+        // Fastest = 200 short / 600 on-track — proves the speed flowed through.
+        let expected: Duration = status == .onTrack ? .milliseconds(600) : .milliseconds(200)
         #expect(scheduler.lastDelay == expected)
     }
 
