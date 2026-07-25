@@ -9,6 +9,7 @@ struct VoiceInputView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppSettings.self) private var settings
 
     @State private var controller: VoiceAnswerController?
     @State private var recognizer = SpeechAnswerRecognizer()
@@ -65,7 +66,7 @@ struct VoiceInputView: View {
             controller?.syncToPhase()
             return
         }
-        let controller = VoiceAnswerController(session: session, recognizer: recognizer)
+        let controller = VoiceAnswerController(session: session, recognizer: recognizer, speed: settings.voiceSpeed)
         self.controller = controller
         controller.requestAuthorization { granted in
             if granted {

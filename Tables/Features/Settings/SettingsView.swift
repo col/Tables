@@ -46,6 +46,44 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
+                    if SpeechAnswerRecognizer.isSupported {
+                        Card {
+                            VStack(alignment: .leading, spacing: Metrics.space3) {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Voice speed")
+                                            .font(Typography.ui(15, weight: .semibold, relativeTo: .subheadline))
+                                            .foregroundStyle(Color.ink)
+                                        Text("How long voice waits for you to finish speaking.")
+                                            .font(Typography.ui(12, relativeTo: .caption))
+                                            .foregroundStyle(Color.inkSoft)
+                                    }
+                                    Spacer()
+                                    Text(settings.voiceSpeed.label)
+                                        .font(Typography.ui(13, weight: .semibold, relativeTo: .footnote))
+                                        .foregroundStyle(Color.inkSoft)
+                                }
+
+                                Slider(
+                                    value: voiceSpeedBinding,
+                                    in: 0...Double(VoiceSpeed.allCases.count - 1),
+                                    step: 1
+                                )
+                                .tint(Color.sage)
+
+                                HStack {
+                                    Text("Fastest")
+                                    Spacer()
+                                    Text("Slowest")
+                                }
+                                .font(Typography.ui(11, relativeTo: .caption2))
+                                .foregroundStyle(Color.inkMuted)
+                            }
+                            .padding(Metrics.space4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
                     Spacer()
                 }
                 .padding(.horizontal, Metrics.space5 + 2)
@@ -62,6 +100,13 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var voiceSpeedBinding: Binding<Double> {
+        Binding(
+            get: { Double(settings.voiceSpeed.rawValue) },
+            set: { settings.voiceSpeed = VoiceSpeed(rawValue: Int($0.rounded())) ?? .normal }
+        )
     }
 
     private func toggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
