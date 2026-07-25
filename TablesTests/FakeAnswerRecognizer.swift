@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class FakeAnswerRecognizer: AnswerRecognizing {
-    var onNumber: ((Int) -> Void)?
+    var onPartial: ((_ number: Int?, _ isFinal: Bool) -> Void)?
 
     var authorized = true
     private(set) var isListening = false
@@ -24,10 +24,10 @@ final class FakeAnswerRecognizer: AnswerRecognizing {
         isListening = false
     }
 
-    /// Simulate the recogniser hearing a number. No-op unless listening,
-    /// mirroring the real recogniser which only emits between start/stop.
-    func emit(_ number: Int) {
+    /// Simulate a recognition partial. No-op unless listening, mirroring the
+    /// real recogniser which only emits between start/stop.
+    func emitPartial(_ number: Int?, isFinal: Bool) {
         guard isListening else { return }
-        onNumber?(number)
+        onPartial?(number, isFinal)
     }
 }
