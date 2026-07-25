@@ -660,11 +660,16 @@ final class VoiceAnswerController {
 
     init(session: GameSession,
          recognizer: any AnswerRecognizing,
-         scheduler: any SettleScheduling = TaskSettleScheduler(),
+         scheduler: (any SettleScheduling)? = nil,
          now: @escaping () -> Date = { Date() }) {
         self.session = session
         self.recognizer = recognizer
-        self.scheduler = scheduler
+        // Defaulted via `nil` rather than `= TaskSettleScheduler()` directly:
+        // a default-argument expression runs in a nonisolated context and can't
+        // call a @MainActor-isolated initializer (same SE-0411 constraint as
+        // `SpeechAnswerRecognizer.isSupported`). Building it here in the init
+        // body is fine — `self` is already on MainActor.
+        self.scheduler = scheduler ?? TaskSettleScheduler()
         self.now = now
         self.recognizer.onPartial = { [weak self] number, isFinal in
             self?.considerPartial(number: number, isFinal: isFinal)
