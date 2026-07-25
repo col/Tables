@@ -6,11 +6,13 @@ import Foundation
 nonisolated enum AnswerMode: String, CaseIterable, Codable, Sendable {
     case multipleChoice
     case numberPad
+    case voice
 
     var title: String {
         switch self {
         case .multipleChoice: "Multiple choice"
         case .numberPad: "Number pad"
+        case .voice: "Voice"
         }
     }
 
@@ -18,6 +20,7 @@ nonisolated enum AnswerMode: String, CaseIterable, Codable, Sendable {
         switch self {
         case .multipleChoice: "Pick from the tiles"
         case .numberPad: "Type the answer"
+        case .voice: "Say the answer"
         }
     }
 }

@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tables listens so you can say your answers out loud.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Tables turns what you say into your answer. Speech is processed on your device.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>ZillaSlab-SemiBold.ttf</string>

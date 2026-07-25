@@ -115,10 +115,9 @@ struct SetupView: View {
     private var answerModeSection: some View {
         section(.answerMode, label: "Answer mode", summary: model.answerMode.title) {
             VStack(spacing: Metrics.space2) {
-                ForEach(AnswerMode.allCases, id: \.self) { mode in
+                ForEach(model.availableAnswerModes, id: \.self) { mode in
                     answerRow(mode)
                 }
-                voiceRow
             }
         }
     }
@@ -162,31 +161,6 @@ struct SetupView: View {
             .overlay {
                 if isSelected { Circle().strokeBorder(Color.sky, lineWidth: 1.5) }
             }
-    }
-
-    private var voiceRow: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Voice")
-                    .font(Typography.ui(15, weight: .semibold, relativeTo: .subheadline))
-                    .foregroundStyle(Color.inkSoft)
-                Text("Say it out loud")
-                    .font(Typography.ui(12, relativeTo: .caption))
-                    .foregroundStyle(Color.inkMuted)
-            }
-            Spacer()
-            StatusChip("Soon")
-        }
-        .padding(.vertical, 13)
-        .padding(.horizontal, Metrics.space3 + 2)
-        .background(Color.tileNeutral)
-        .clipShape(RoundedRectangle(cornerRadius: Metrics.radiusCard - 2, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Metrics.radiusCard - 2, style: .continuous)
-                .strokeBorder(Color.border, lineWidth: 1.5)
-        }
-        .opacity(0.75)
-        .accessibilityLabel("Voice. Say it out loud. Coming soon.")
     }
 
     private var lengthSection: some View {

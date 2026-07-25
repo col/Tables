@@ -15,6 +15,7 @@ final class SetupModel {
     var answerMode: AnswerMode
     var length: GameLength
     var openSection: Section?
+    let isVoiceSupported: Bool
 
     // Tables and answer mode are shared across both modes — they are the
     // child's preferences. Length is remembered per mode, since a Countdown
@@ -27,14 +28,15 @@ final class SetupModel {
     // UI tests always start from a cold setup so their taps are deterministic.
     @ObservationIgnored private let persists: Bool
 
-    init(mode: GameMode, defaults: UserDefaults = .standard) {
+    init(mode: GameMode, defaults: UserDefaults = .standard, isVoiceSupported: Bool = SpeechAnswerRecognizer.isSupported) {
         self.mode = mode
         self.defaults = defaults
+        self.isVoiceSupported = isVoiceSupported
         self.persists = !ProcessInfo.processInfo.arguments.contains("-uiTesting")
 
         if persists {
             self.tables = Self.loadTables(from: defaults)
-            self.answerMode = Self.loadAnswerMode(from: defaults)
+            self.answerMode = Self.loadAnswerMode(from: defaults, isVoiceSupported: isVoiceSupported)
             self.length = Self.loadLength(from: defaults, mode: mode) ?? Self.defaultLength(mode)
         } else {
             self.tables = []
@@ -42,6 +44,11 @@ final class SetupModel {
             self.length = Self.defaultLength(mode)
         }
         self.openSection = .tables
+    }
+
+    /// Answer modes offered on this device. Voice needs on-device recognition.
+    var availableAnswerModes: [AnswerMode] {
+        AnswerMode.allCases.filter { $0 != .voice || isVoiceSupported }
     }
 
     /// Persist the current selections so they become the defaults next time.
@@ -94,9 +101,10 @@ final class SetupModel {
         return Set(stored.filter { GameConfig.allTables.contains($0) })
     }
 
-    private static func loadAnswerMode(from defaults: UserDefaults) -> AnswerMode {
+    private static func loadAnswerMode(from defaults: UserDefaults, isVoiceSupported: Bool) -> AnswerMode {
         guard let raw = defaults.string(forKey: answerModeKey),
               let mode = AnswerMode(rawValue: raw) else { return .multipleChoice }
+        if mode == .voice && !isVoiceSupported { return .multipleChoice }
         return mode
     }
 

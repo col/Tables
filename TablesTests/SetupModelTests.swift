@@ -127,4 +127,29 @@ struct SetupModelTests {
         let model = SetupModel(mode: .countdown, defaults: defaults)
         #expect(model.length == .seconds(60))
     }
+
+    @Test("voice is offered only when supported")
+    func voiceGating() {
+        let defaults = UserDefaults(suiteName: "voice.gating.\(UUID().uuidString)")!
+        let supported = SetupModel(mode: .countdown, defaults: defaults, isVoiceSupported: true)
+        #expect(supported.availableAnswerModes.contains(.voice))
+        let unsupported = SetupModel(mode: .countdown, defaults: defaults, isVoiceSupported: false)
+        #expect(unsupported.availableAnswerModes.contains(.voice) == false)
+    }
+
+    @Test("a stored voice mode falls back when unsupported")
+    func voiceFallback() {
+        let defaults = UserDefaults(suiteName: "voice.fallback.\(UUID().uuidString)")!
+        defaults.set(AnswerMode.voice.rawValue, forKey: "setup.answerMode")
+        let model = SetupModel(mode: .countdown, defaults: defaults, isVoiceSupported: false)
+        #expect(model.answerMode == .multipleChoice)
+    }
+
+    @Test("a stored voice mode is kept when supported")
+    func voiceKept() {
+        let defaults = UserDefaults(suiteName: "voice.kept.\(UUID().uuidString)")!
+        defaults.set(AnswerMode.voice.rawValue, forKey: "setup.answerMode")
+        let model = SetupModel(mode: .countdown, defaults: defaults, isVoiceSupported: true)
+        #expect(model.answerMode == .voice)
+    }
 }
