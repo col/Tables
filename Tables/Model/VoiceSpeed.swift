@@ -22,11 +22,11 @@ nonisolated enum VoiceSpeed: Int, CaseIterable, Codable, Sendable {
     /// short insurance window in case it grows into a different number.
     var shortWait: Duration {
         switch self {
-        case .fastest: .milliseconds(200)
-        case .fast: .milliseconds(300)
+        case .fastest: .milliseconds(100)
+        case .fast: .milliseconds(250)
         case .normal: .milliseconds(400)
-        case .slow: .milliseconds(500)
-        case .slowest: .milliseconds(600)
+        case .slow: .milliseconds(550)
+        case .slowest: .milliseconds(700)
         }
     }
 
@@ -34,11 +34,11 @@ nonisolated enum VoiceSpeed: Int, CaseIterable, Codable, Sendable {
     /// finish saying it.
     var onTrackWait: Duration {
         switch self {
-        case .fastest: .milliseconds(600)
-        case .fast: .milliseconds(700)
+        case .fastest: .milliseconds(500)
+        case .fast: .milliseconds(650)
         case .normal: .milliseconds(800)
-        case .slow: .milliseconds(900)
-        case .slowest: .milliseconds(1000)
+        case .slow: .milliseconds(950)
+        case .slowest: .milliseconds(1100)
         }
     }
 }

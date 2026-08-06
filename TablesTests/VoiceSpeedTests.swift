@@ -11,11 +11,11 @@ struct VoiceSpeedTests {
     }
 
     @Test("durations and labels match the table", arguments: [
-        (VoiceSpeed.fastest, "Fastest", 200, 600),
-        (.fast, "Fast", 300, 700),
+        (VoiceSpeed.fastest, "Fastest", 100, 500),
+        (.fast, "Fast", 250, 650),
         (.normal, "Normal", 400, 800),
-        (.slow, "Slow", 500, 900),
-        (.slowest, "Slowest", 600, 1000),
+        (.slow, "Slow", 550, 950),
+        (.slowest, "Slowest", 700, 1100),
     ])
     func table(speed: VoiceSpeed, label: String, short: Int, onTrack: Int) {
         #expect(speed.label == label)

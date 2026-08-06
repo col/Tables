@@ -69,7 +69,7 @@ struct VoiceAnswerControllerTests {
         fake.emitPartial(20, isFinal: false)             // extendable, not a ×3/×7 answer
         let status = SpokenNumber.track(heard: 20, answer: answer)
         // Fastest = 200 short / 600 on-track — proves the speed flowed through.
-        let expected: Duration = status == .onTrack ? .milliseconds(600) : .milliseconds(200)
+        let expected: Duration = status == .onTrack ? .milliseconds(500) : .milliseconds(100)
         #expect(scheduler.lastDelay == expected)
     }
 
