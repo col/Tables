@@ -7,7 +7,8 @@ struct VoiceAnswerControllerTests {
 
     private let start = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private func make() -> (VoiceAnswerController, GameSession, FakeAnswerRecognizer, ManualSettleScheduler) {
+    private func make(speed: VoiceSpeed = .normal)
+        -> (VoiceAnswerController, GameSession, FakeAnswerRecognizer, ManualSettleScheduler) {
         let config = GameConfig(mode: .countdown, tables: [3, 7], answerMode: .voice, length: .seconds(60))
         let session = GameSession(
             config: config,
@@ -20,7 +21,7 @@ struct VoiceAnswerControllerTests {
         let fake = FakeAnswerRecognizer()
         let scheduler = ManualSettleScheduler()
         let controller = VoiceAnswerController(
-            session: session, recognizer: fake, scheduler: scheduler, now: { self.start }
+            session: session, recognizer: fake, scheduler: scheduler, speed: speed, now: { self.start }
         )
         return (controller, session, fake, scheduler)
     }
@@ -56,8 +57,39 @@ struct VoiceAnswerControllerTests {
         #expect(controller.progress == VoiceProgress(heard: 20, status: status))
         #expect(fake.isListening)                    // NOT submitted yet
         #expect(controller.display == .listening)
-        let expected: Duration = status == .offTrack ? .milliseconds(400) : .milliseconds(1200)
+        let expected: Duration = status == .onTrack ? .milliseconds(800) : .milliseconds(400)
         #expect(scheduler.lastDelay == expected)
+    }
+
+    @Test("the injected speed sets the settle durations")
+    func speedDrivesDurations() {
+        let (controller, session, fake, scheduler) = make(speed: .fastest)
+        controller.syncToPhase()
+        let answer = session.fact.answer
+        fake.emitPartial(20, isFinal: false)             // extendable, not a ×3/×7 answer
+        let status = SpokenNumber.track(heard: 20, answer: answer)
+        // Fastest = 200 short / 600 on-track — proves the speed flowed through.
+        let expected: Duration = status == .onTrack ? .milliseconds(500) : .milliseconds(100)
+        #expect(scheduler.lastDelay == expected)
+    }
+
+    @Test("a matching answer never waits the long on-track duration")
+    func matchUsesShortWait() {
+        let (controller, session, fake, scheduler) = make()
+        controller.syncToPhase()
+        let answer = session.fact.answer
+        fake.emitPartial(answer, isFinal: false)     // heard == answer -> .matches
+        if SpokenNumber.isExtendable(answer) {
+            // Extendable match (e.g. answer 30, heard "thirty"): short insurance
+            // wait, NOT the long on-track wait — we already have the answer.
+            #expect(scheduler.lastDelay == .milliseconds(400))
+            #expect(fake.isListening)                // waiting, not yet submitted
+            #expect(controller.progress == VoiceProgress(heard: answer, status: .matches))
+        } else {
+            // Terminal match (the common case): submits immediately, no wait.
+            #expect(controller.display == .heard(answer))
+            #expect(scheduler.lastDelay == nil)
+        }
     }
 
     @Test("firing the settle timer submits the pending number")

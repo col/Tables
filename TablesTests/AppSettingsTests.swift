@@ -44,4 +44,21 @@ struct AppSettingsTests {
     func choices() {
         #expect(AppSettings.optionCountChoices == [4, 6])
     }
+
+    @Test("voice speed defaults to normal and survives a relaunch")
+    func voiceSpeedPersists() {
+        let defaults = freshDefaults("test.voicespeed")
+        #expect(AppSettings(defaults: defaults).voiceSpeed == .normal)
+
+        let first = AppSettings(defaults: defaults)
+        first.voiceSpeed = .fastest
+        #expect(AppSettings(defaults: defaults).voiceSpeed == .fastest)
+    }
+
+    @Test("an out-of-range stored voice speed falls back to normal")
+    func voiceSpeedClamped() {
+        let defaults = freshDefaults("test.voicespeed.clamp")
+        defaults.set(99, forKey: "settings.voiceSpeed")
+        #expect(AppSettings(defaults: defaults).voiceSpeed == .normal)
+    }
 }

@@ -29,16 +29,15 @@ final class VoiceAnswerController {
     private let recognizer: any AnswerRecognizing
     private let scheduler: any SettleScheduling
     private let now: () -> Date
+    private let speed: VoiceSpeed
 
     private var pendingNumber: Int?
     private var hasSubmitted = false
 
-    private static let onTrackWait: Duration = .milliseconds(1200)   // .matches + .onTrack
-    private static let offTrackWait: Duration = .milliseconds(400)
-
     init(session: GameSession,
          recognizer: any AnswerRecognizing,
          scheduler: (any SettleScheduling)? = nil,
+         speed: VoiceSpeed = .normal,
          now: @escaping () -> Date = { Date() }) {
         self.session = session
         self.recognizer = recognizer
@@ -49,6 +48,7 @@ final class VoiceAnswerController {
         // Constructing it here in the init body is fine — `self` is already
         // on MainActor by the time this runs.
         self.scheduler = scheduler ?? TaskSettleScheduler()
+        self.speed = speed
         self.now = now
         self.recognizer.onPartial = { [weak self] number, isFinal in
             self?.considerPartial(number: number, isFinal: isFinal)
@@ -96,7 +96,9 @@ final class VoiceAnswerController {
         guard let pending = pendingNumber else { return }
         let status = SpokenNumber.track(heard: pending, answer: session.fact.answer)
         progress = VoiceProgress(heard: pending, status: status)
-        let wait = status == .offTrack ? Self.offTrackWait : Self.onTrackWait
+        // Only a genuinely on-track number earns the long wait; a match already
+        // has the right answer and just needs the short insurance window.
+        let wait = status == .onTrack ? speed.onTrackWait : speed.shortWait
         VoiceLog.log("heard \(pending) \(status) wait=\(wait)")
         scheduler.schedule(after: wait) { [weak self] in
             self?.settleFired()

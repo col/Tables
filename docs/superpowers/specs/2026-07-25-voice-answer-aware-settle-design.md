@@ -29,8 +29,12 @@ of scope for this change** — we only publish the event.
   relationship on each number's canonical words: "thirty" (30) is on-track for 36
   (→"thirty six"); "forty" (40) and "three" (3) are not. This distinguishes cases
   a purely-arithmetic heuristic cannot (3 vs 30 both `< 36`).
-- **Durations:** on-track **1200 ms**, off-track **400 ms** (tunable constants). A
-  terminal number (one that can't grow, e.g. 36, 42, 7) still submits immediately.
+- **Durations:** on-track **1200 ms**; a **match** or off-track **400 ms**
+  (tunable constants). A terminal number (one that can't grow, e.g. 36, 42, 7)
+  still submits immediately. (Refinement after first device testing: a `.matches`
+  originally shared the 1200 ms wait, but since it's already the correct answer
+  it now takes only the short insurance window — long enough to catch it growing
+  into a wrong number like "thirty" → "thirty two", but no full-patience wait.)
 - **Event payload:** `VoiceProgress { heard: Int, status: .matches | .onTrack |
   .offTrack }`. No transcript string.
 - **Event mechanism:** an observable `private(set) var progress: VoiceProgress?`
@@ -115,8 +119,8 @@ New state:
 private(set) var progress: VoiceProgress?
 private var pendingNumber: Int?
 private var hasSubmitted = false            // one submit per question
-private static let onTrackWait:  Duration = .milliseconds(1200)   // matches + onTrack
-private static let offTrackWait: Duration = .milliseconds(400)
+private static let onTrackWait: Duration = .milliseconds(1200)   // onTrack only
+private static let shortWait:   Duration = .milliseconds(400)    // matches or offTrack
 ```
 
 Per-partial logic (`considerPartial(number:isFinal:)`):
@@ -134,7 +138,7 @@ if let n { pendingNumber = n }              // extendable candidate
 if let pending = pendingNumber {            // still-growing: publish + (re)arm
     let status = SpokenNumber.track(heard: pending, answer: session.fact.answer)
     progress = VoiceProgress(heard: pending, status: status)
-    scheduler.schedule(after: status == .offTrack ? Self.offTrackWait : Self.onTrackWait) {
+    scheduler.schedule(after: status == .onTrack ? Self.onTrackWait : Self.shortWait) {
         [weak self] in self?.settleFired()
     }
 }
