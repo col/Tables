@@ -7,7 +7,7 @@ devices([
   "iPad Pro 13-inch (M4)"
 ])
 
-languages(["en-US"])
+languages(["en-AU"])
 
 scheme("Tables")
 output_directory("./fastlane/screenshots")
